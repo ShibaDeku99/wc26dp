@@ -287,8 +287,8 @@ export async function fetchMatchDetail(id: string): Promise<MatchDetail | null> 
   }
 
   let events: MatchEvent[] = [];
-  let statistics: MatchStatistic[] = [];
-  let lineups: any[] = [];
+  let statistics: any = [];
+  let lineups: any = null;
   let attendance: string | undefined;
   let weather: string | undefined;
   let referee: string | undefined;
