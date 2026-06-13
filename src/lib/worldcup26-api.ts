@@ -369,8 +369,8 @@ export async function fetchMatchDetail(id: string): Promise<MatchDetail | null> 
     let rapidApiStats = null;
     let fallbackGraphPoints: any[] = [];
 
-    // Use Sofascore RapidAPI for LIVE matches as requested
-    if (match.status === 'live') {
+    // Use Sofascore RapidAPI for both LIVE and FINISHED matches to ensure events show up
+    if (match.status === 'live' || match.status === 'finished') {
       try {
         // AUTO FETCH ID of the ongoing match pair!
         let liveMatchId = await FlashscoreScraper.autoFetchMatchId(match.homeTeam.name, match.awayTeam.name);
