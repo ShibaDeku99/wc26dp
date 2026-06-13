@@ -1,6 +1,7 @@
 'use client';
 
 import { ThemeToggle } from '@/components/shared/theme-toggle';
+import { LanguageToggle } from '@/components/shared/language-toggle';
 import { Trophy, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { MobileNav } from './mobile-nav';
@@ -37,6 +38,7 @@ export function AppHeader() {
             <div className="w-2 h-2 rounded-full bg-fuchsia-400 animate-pulse" />
             <span className="text-[11px] font-medium text-fuchsia-700 dark:text-fuchsia-400">LIVE</span>
           </div>
+          <LanguageToggle />
           <ThemeToggle />
         </div>
       </div>

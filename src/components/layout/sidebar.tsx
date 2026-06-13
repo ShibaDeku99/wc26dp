@@ -15,15 +15,16 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/lib/i18n';
 
-const NAV_ITEMS = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/groups', label: 'Groups', icon: Users },
-  { href: '/fixtures', label: 'Fixtures', icon: Calendar },
-  { href: '/results', label: 'Results', icon: Trophy },
-  { href: '/standings', label: 'Standings', icon: BarChart3 },
-  { href: '/stats', label: 'Player Stats', icon: LineChart },
-  { href: '/live', label: 'Live Score', icon: Radio },
+const NAV_ITEMS_MAP = [
+  { href: '/', i18nKey: 'nav.dashboard', icon: LayoutDashboard },
+  { href: '/groups', i18nKey: 'nav.groups', icon: Users },
+  { href: '/fixtures', i18nKey: 'nav.fixtures', icon: Calendar },
+  { href: '/results', i18nKey: 'nav.results', icon: Trophy },
+  { href: '/standings', i18nKey: 'nav.standings', icon: BarChart3 },
+  { href: '/stats', i18nKey: 'nav.stats', icon: LineChart },
+  { href: '/live', i18nKey: 'nav.live', icon: Radio },
 ];
 
 interface SidebarProps {
@@ -33,6 +34,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   return (
     <aside
@@ -61,8 +63,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 py-4 px-3 space-y-1">
-        {NAV_ITEMS.map(item => {
+        {NAV_ITEMS_MAP.map(item => {
           const isActive = pathname === item.href;
+          const label = t(item.i18nKey);
           return (
             <Link
               key={item.href}
@@ -75,7 +78,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               )}
             >
               <item.icon className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-fuchsia-700 dark:text-fuchsia-400')} />
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && <span>{label}</span>}
               {isActive && !collapsed && (
                 <div className="ml-auto w-1.5 h-1.5 rounded-full bg-fuchsia-400" />
               )}

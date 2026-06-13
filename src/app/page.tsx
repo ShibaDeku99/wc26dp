@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useLanguage } from '@/lib/i18n';
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -25,6 +26,8 @@ const QUICK_LINKS = [
 ];
 
 export default function HomePage() {
+  const { t } = useLanguage();
+
   const { data: todayData, isLoading: todayLoading, refetch: refetchToday } = useQuery<{ data: TodayData }>({
     queryKey: ['today'],
     queryFn: () => fetch('/api/today').then(r => r.json()),
@@ -115,16 +118,15 @@ export default function HomePage() {
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="h-4 w-4 text-fuchsia-700 dark:text-fuchsia-400" />
             <span className="text-[11px] font-semibold text-fuchsia-700 dark:text-fuchsia-400 uppercase tracking-wider">
-              FIFA World Cup 2026
+              {t('dashboard.tournamentInfo')}
             </span>
           </div>
           <h1 className="text-3xl lg:text-5xl font-extrabold text-slate-900 dark:text-white mb-3 tracking-tight">
-            World Cup 2026
+            {t('dashboard.heroTitle')}
             <span className="gradient-text block lg:inline lg:ml-3">Dashboard</span>
           </h1>
           <p className="text-sm lg:text-base text-slate-600 dark:text-white/40 max-w-xl leading-relaxed">
-            Track every match, score, and standing from the FIFA World Cup 2026.
-            Live scores, fixtures, and comprehensive tournament analytics.
+            {t('dashboard.heroSubtitle')}
           </p>
 
           {/* Host countries */}
@@ -235,17 +237,17 @@ export default function HomePage() {
               {(!todayLoading && today?.live && today.live.length > 0) ? (
                 <>
                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">Live Now</h2>
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('dashboard.liveMatches')}</h2>
                 </>
               ) : (
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Next Match</h2>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('dashboard.nextMatch')}</h2>
               )}
             </div>
             <Link
               href="/live"
               className="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400 hover:text-emerald-300 transition-colors"
             >
-              View all <ArrowRight className="h-3 w-3" />
+              {t('dashboard.viewAll')} <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
 
