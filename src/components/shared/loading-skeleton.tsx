@@ -3,12 +3,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface LoadingSkeletonProps {
   type?: 'card' | 'table' | 'list' | 'hero' | 'match';
   count?: number;
+  className?: string;
 }
 
-export function LoadingSkeleton({ type = 'card', count = 3 }: LoadingSkeletonProps) {
+export function LoadingSkeleton({ type = 'card', count = 3, className }: LoadingSkeletonProps) {
   if (type === 'hero') {
     return (
-      <div className="space-y-4 p-6">
+      <div className={`space-y-4 p-6 ${className || ''}`}>
         <Skeleton className="h-10 w-3/4 rounded-xl bg-slate-100 dark:bg-white/5" />
         <Skeleton className="h-6 w-1/2 rounded-lg bg-slate-100 dark:bg-white/5" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">

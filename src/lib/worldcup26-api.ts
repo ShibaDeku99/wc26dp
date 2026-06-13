@@ -93,9 +93,9 @@ export async function fetchFixtures(): Promise<Match[]> {
   }));
 
   return gamesData.games.map((game: any): Match => {
-    const homeTeamRaw = teamMap.get(String(game.home_team_id)) || {};
-    const awayTeamRaw = teamMap.get(String(game.away_team_id)) || {};
-    const stadium = stadiumMap.get(String(game.stadium_id));
+    const homeTeamRaw: any = teamMap.get(String(game.home_team_id)) || {};
+    const awayTeamRaw: any = teamMap.get(String(game.away_team_id)) || {};
+    const stadium: any = stadiumMap.get(String(game.stadium_id));
     const zafOverride = zafStadiumMap.get(String(game.id));
 
     let status: MatchStatus = 'scheduled';
@@ -225,7 +225,7 @@ export async function fetchStandings(): Promise<Record<string, Standing[]>> {
     const groupName = `Group ${group.name}`;
     
     result[groupName] = group.teams.map((t: any): Standing => {
-      const teamRaw = teamMap.get(String(t.team_id)) || {};
+      const teamRaw: any = teamMap.get(String(t.team_id)) || {};
       
       const safeInt = (val: any) => {
         if (!val || val === 'null') return 0;
@@ -367,7 +367,7 @@ export async function fetchMatchDetail(id: string): Promise<MatchDetail | null> 
   // Only crawl Match Statistics, Graph, and Lineups if the match is live or finished
   if (match.status !== 'scheduled') {
     const { statistics: stats, graphPoints: points, lineups: sofascoreLineups } = await FlashscoreScraper.getMatchStatistics(match.homeTeam.name, match.awayTeam.name);
-    statistics = stats;
+    statistics = stats as any;
     
     return {
       ...match,

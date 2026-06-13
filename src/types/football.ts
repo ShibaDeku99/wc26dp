@@ -7,7 +7,7 @@ export type Team = {
   name: string;
   code: string;
   flag: string;
-  group: string;
+  group?: string;
 };
 
 export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'postponed';
