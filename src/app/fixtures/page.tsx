@@ -46,7 +46,13 @@ export default function FixturesPage() {
     }
 
     if (selectedDate) {
-      fixtures = fixtures.filter(f => f.date.startsWith(selectedDate));
+      fixtures = fixtures.filter(f => {
+        const d = new Date(f.date);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}` === selectedDate;
+      });
     }
 
     return fixtures;

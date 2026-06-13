@@ -113,5 +113,4 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     </aside>
   );
 }
-
-export { NAV_ITEMS };
+export { NAV_ITEMS_MAP };

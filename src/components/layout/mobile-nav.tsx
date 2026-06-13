@@ -5,13 +5,15 @@ import { usePathname } from 'next/navigation';
 import { Menu, Trophy } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { NAV_ITEMS } from './sidebar';
+import { NAV_ITEMS_MAP } from './sidebar';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { useLanguage } from '@/lib/i18n';
 
 export function MobileNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -40,7 +42,7 @@ export function MobileNav() {
 
         {/* Navigation */}
         <nav className="px-4 py-4 space-y-1">
-          {NAV_ITEMS.map(item => {
+          {NAV_ITEMS_MAP.map((item: any) => {
             const isActive = pathname === item.href;
             return (
               <Link
@@ -55,7 +57,7 @@ export function MobileNav() {
                 )}
               >
                 <item.icon className={cn('h-5 w-5', isActive && 'text-emerald-700 dark:text-emerald-400')} />
-                <span>{item.label}</span>
+                <span>{t(item.i18nKey)}</span>
               </Link>
             );
           })}
