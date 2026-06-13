@@ -235,7 +235,13 @@ export default function StatsPage() {
       'Iran': 'ir', 'Wales': 'gb-wls', 'Costa Rica': 'cr', 'Qatar': 'qa', 'Ivory Coast': 'ci',
       'Nigeria': 'ng', 'Algeria': 'dz', 'Egypt': 'eg', 'Mali': 'ml', 'Sweden': 'se',
       'Norway': 'no', 'Turkey': 'tr', 'Ukraine': 'ua', 'Scotland': 'gb-sct', 'Peru': 'pe',
-      'Chile': 'cl', 'Paraguay': 'py', 'Venezuela': 've', 'Panama': 'pa', 'Jamaica': 'jm'
+      'Chile': 'cl', 'Paraguay': 'py', 'Venezuela': 've', 'Panama': 'pa', 'Jamaica': 'jm',
+      'Bosnia & Herzegovina': 'ba', 'Austria': 'at', 'Czech Republic': 'cz', 'Slovakia': 'sk',
+      'Romania': 'ro', 'Hungary': 'hu', 'Greece': 'gr', 'Republic of Ireland': 'ie', 'Ireland': 'ie',
+      'Northern Ireland': 'gb-nir', 'Finland': 'fi', 'Iceland': 'is', 'Honduras': 'hn',
+      'El Salvador': 'sv', 'New Zealand': 'nz', 'South Africa': 'za', 'Bolivia': 'bo',
+      'Haiti': 'ht', 'Trinidad and Tobago': 'tt', 'Macedonia': 'mk', 'North Macedonia': 'mk',
+      'Slovenia': 'si', 'Albania': 'al', 'Georgia': 'ge', 'Bulgaria': 'bg'
     };
     
     const code = map[teamName];
