@@ -22,8 +22,87 @@ export default function StandingsPage() {
     staleTime: 10 * 60 * 1000,
   });
 
-  const standings = data?.data || {};
-  const groupNames = Object.keys(standings).sort();
+  // Fetch live matches to update standings in real-time
+  const { data: todayData } = useQuery<{ data: any }>({
+    queryKey: ['today'],
+    queryFn: () => fetch('/api/today').then(r => r.json()),
+    refetchInterval: 30000, // Poll every 30 seconds for live score changes
+  });
+
+  const baseStandings = data?.data || {};
+  const groupNames = Object.keys(baseStandings).sort();
+  const liveMatches = todayData?.data?.live || [];
+
+  // Recalculate standings dynamically based on live matches
+  const standings = useMemo(() => {
+    if (!baseStandings || Object.keys(baseStandings).length === 0) return {};
+    
+    // Deep clone to avoid mutating cache
+    const updatedStandings: Record<string, Standing[]> = JSON.parse(JSON.stringify(baseStandings));
+    
+    if (liveMatches.length === 0) return updatedStandings;
+
+    liveMatches.forEach((match: any) => {
+      // Find the group name (e.g., 'Group A')
+      const matchGroup = match.group || `Group ${match.homeTeam.group}`; // Try to resolve group
+      let groupKey = Object.keys(updatedStandings).find(g => g.includes(matchGroup) || matchGroup.includes(g));
+      
+      // Fallback: search all groups for these teams
+      if (!groupKey) {
+        groupKey = Object.keys(updatedStandings).find(g => 
+          updatedStandings[g].some(s => s.team.id === match.homeTeam.id)
+        );
+      }
+
+      if (groupKey && updatedStandings[groupKey]) {
+        const group = updatedStandings[groupKey];
+        const homeTeam = group.find(s => s.team.id === match.homeTeam.id);
+        const awayTeam = group.find(s => s.team.id === match.awayTeam.id);
+
+        if (homeTeam && awayTeam && match.homeScore !== null && match.awayScore !== null) {
+          // Increment played matches
+          homeTeam.played += 1;
+          awayTeam.played += 1;
+
+          // Update goals
+          homeTeam.goalsFor += match.homeScore;
+          homeTeam.goalsAgainst += match.awayScore;
+          homeTeam.goalDifference = homeTeam.goalsFor - homeTeam.goalsAgainst;
+
+          awayTeam.goalsFor += match.awayScore;
+          awayTeam.goalsAgainst += match.homeScore;
+          awayTeam.goalDifference = awayTeam.goalsFor - awayTeam.goalsAgainst;
+
+          // Update points and W/D/L
+          if (match.homeScore > match.awayScore) {
+            homeTeam.won += 1;
+            homeTeam.points += 3;
+            awayTeam.lost += 1;
+          } else if (match.homeScore < match.awayScore) {
+            awayTeam.won += 1;
+            awayTeam.points += 3;
+            homeTeam.lost += 1;
+          } else {
+            homeTeam.drawn += 1;
+            homeTeam.points += 1;
+            awayTeam.drawn += 1;
+            awayTeam.points += 1;
+          }
+        }
+      }
+    });
+
+    // Re-sort the updated standings
+    Object.keys(updatedStandings).forEach(groupName => {
+      updatedStandings[groupName].sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+        return b.goalsFor - a.goalsFor;
+      });
+    });
+
+    return updatedStandings;
+  }, [baseStandings, liveMatches]);
 
   const filteredGroups = selectedGroup
     ? groupNames.filter(g => g === `Group ${selectedGroup}`)
