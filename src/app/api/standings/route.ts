@@ -4,6 +4,9 @@ import { getOrSetCache, CACHE_TTL } from '@/lib/cache';
 import { fetchStandings } from '@/lib/worldcup26-api';
 import type { Standing } from '@/types/football';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 60;
+
 export async function GET() {
   try {
     const standings = await getOrSetCache<Record<string, Standing[]>>(

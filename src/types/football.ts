@@ -24,6 +24,7 @@ export type Match = {
   group?: string;
   round: string;
   status: MatchStatus;
+  liveMinute?: number; // Added to show live clock (e.g. 65')
   attendance?: string;
   weather?: string;
 };

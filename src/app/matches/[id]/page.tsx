@@ -107,7 +107,7 @@ export default function MatchDetailPage() {
             <span className="text-xs text-slate-500 dark:text-white/20">•</span>
             <span className="text-xs text-slate-600 dark:text-white/40">{match.round}</span>
           </div>
-          <StatusBadge status={match.status} />
+          <StatusBadge status={match.status} liveMinute={match.liveMinute} />
         </div>
 
         {/* Teams & Score via TV Scoreboard */}

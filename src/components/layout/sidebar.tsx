@@ -8,7 +8,7 @@ import {
   Calendar,
   Trophy,
   BarChart3,
-  Radio,
+  Network,
   ChevronLeft,
   ChevronRight,
   LineChart,
@@ -24,7 +24,7 @@ const NAV_ITEMS_MAP = [
   { href: '/results', i18nKey: 'nav.results', icon: Trophy },
   { href: '/standings', i18nKey: 'nav.standings', icon: BarChart3 },
   { href: '/stats', i18nKey: 'nav.stats', icon: LineChart },
-  { href: '/live', i18nKey: 'nav.live', icon: Radio },
+  { href: '/bracket', i18nKey: 'nav.bracket', icon: Network },
 ];
 
 interface SidebarProps {

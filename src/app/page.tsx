@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import {
   Users, Calendar, Trophy, BarChart3, Radio,
-  ArrowRight, Globe, MapPin, Sparkles,
+  ArrowRight, Globe, MapPin, Sparkles, Network,
 } from 'lucide-react';
 import { DashboardCard } from '@/components/dashboard/dashboard-card';
 import { MatchCard } from '@/components/dashboard/match-card';
@@ -22,11 +22,16 @@ const QUICK_LINKS = [
   { href: '/groups', label: 'Groups', icon: Users, desc: '12 groups • 48 teams' },
   { href: '/fixtures', label: 'Fixtures', icon: Calendar, desc: 'Full schedule' },
   { href: '/standings', label: 'Standings', icon: BarChart3, desc: 'Group tables' },
-  { href: '/live', label: 'Live Score', icon: Radio, desc: 'Real-time updates' },
+  { href: '/bracket', label: 'Bracket', icon: Network, desc: 'Knockout Stage' },
 ];
 
 export default function HomePage() {
   const { t } = useLanguage();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const { data: todayData, isLoading: todayLoading, refetch: refetchToday } = useQuery<{ data: TodayData }>({
     queryKey: ['today'],
@@ -98,6 +103,8 @@ export default function HomePage() {
       return localDate === selectedDate;
     });
   }, [today?.upcoming, selectedDate]);
+
+  if (!mounted) return null;
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
@@ -244,7 +251,7 @@ export default function HomePage() {
               )}
             </div>
             <Link
-              href="/live"
+              href="/fixtures"
               className="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400 hover:text-emerald-300 transition-colors"
             >
               {t('dashboard.viewAll')} <ArrowRight className="h-3 w-3" />

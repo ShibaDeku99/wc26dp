@@ -80,7 +80,7 @@ export function MatchCard({ match, compact = false }: MatchCardProps) {
           <span className="text-[10px] text-slate-500 dark:text-white/20">•</span>
           <span className="text-[10px] text-slate-500 dark:text-white/30">{match.round}</span>
         </div>
-        <StatusBadge status={match.status} />
+        <StatusBadge status={match.status} liveMinute={match.liveMinute} />
       </div>
 
       {/* Teams & Score via TV Scoreboard */}

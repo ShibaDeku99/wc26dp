@@ -13,7 +13,12 @@ export const translations = {
       results: "Results",
       groups: "Groups",
       standings: "Standings",
-      stats: "Statistics"
+      stats: "Statistics",
+      bracket: "Bracket"
+    },
+    bracket: {
+      title: "Knockout Stage",
+      subtitle: "Road to the Final"
     },
     dashboard: {
       heroTitle: "World Cup 2026",
@@ -86,7 +91,12 @@ export const translations = {
       results: "Kết quả",
       groups: "Vòng bảng",
       standings: "Bảng xếp hạng",
-      stats: "Thống kê"
+      stats: "Thống kê",
+      bracket: "Sơ đồ đấu"
+    },
+    bracket: {
+      title: "Vòng loại trực tiếp",
+      subtitle: "Đường đến Chung kết"
     },
     dashboard: {
       heroTitle: "World Cup 2026",
@@ -184,10 +194,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const keys = path.split('.');
     let current: any = translations[language];
     for (const key of keys) {
-      if (current[key] === undefined) {
+      if (!current || current[key] === undefined) {
         // Fallback to english
         let fallback: any = translations['en'];
-        for (const k of keys) fallback = fallback[k];
+        for (const k of keys) fallback = fallback ? fallback[k] : undefined;
         return fallback || path;
       }
       current = current[key];

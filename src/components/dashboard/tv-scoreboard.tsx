@@ -86,7 +86,9 @@ export function TVScoreboard({ match, compact = false }: TVScoreboardProps) {
         {/* Time */}
         <div className={cn("flex items-center justify-center bg-white rounded-r-2xl sm:rounded-r-[2rem] relative z-0", timePx, borderB, "border-purple-300")}>
           <span className={cn("font-black text-black leading-none whitespace-nowrap", timeText)}>
-            {match.status === 'live' ? 'LIVE' : match.status === 'finished' ? 'FT' : timeStr}
+            {match.status === 'live' 
+              ? (match.liveMinute !== undefined ? <span className="text-emerald-600 animate-pulse">{match.liveMinute}&apos;</span> : <span className="text-emerald-600 animate-pulse">LIVE</span>) 
+              : match.status === 'finished' ? 'FT' : timeStr}
           </span>
         </div>
 

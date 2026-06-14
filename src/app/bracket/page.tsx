@@ -72,6 +72,27 @@ const r32Matchups = [
   ["1st Group K", "3rd Grp D/E/I/J/L"],
 ];
 
+const r32Dates = [
+  'Jun 28, 2026 • 12:00', 'Jun 29, 2026 • 12:00', 'Jun 29, 2026 • 16:30', 'Jun 29, 2026 • 19:00',
+  'Jun 30, 2026 • 12:00', 'Jun 30, 2026 • 17:00', 'Jun 30, 2026 • 19:00', 'Jul 1, 2026 • 12:00',
+  'Jul 1, 2026 • 13:00', 'Jul 1, 2026 • 17:00', 'Jul 2, 2026 • 12:00', 'Jul 2, 2026 • 19:00',
+  'Jul 2, 2026 • 20:00', 'Jul 3, 2026 • 13:00', 'Jul 3, 2026 • 18:00', 'Jul 3, 2026 • 20:30'
+];
+const r16Dates = [
+  'Jul 4, 2026 • 12:00', 'Jul 4, 2026 • 17:00', 'Jul 5, 2026 • 16:00', 'Jul 5, 2026 • 18:00',
+  'Jul 6, 2026 • 14:00', 'Jul 6, 2026 • 17:00', 'Jul 7, 2026 • 12:00', 'Jul 7, 2026 • 13:00'
+];
+const qfDates = [
+  'Jul 9, 2026 • 16:00', 'Jul 10, 2026 • 12:00', 'Jul 11, 2026 • 17:00', 'Jul 11, 2026 • 20:00'
+];
+const sfDates = [
+  'Jul 14, 2026 • 14:00', 'Jul 15, 2026 • 15:00'
+];
+
+let r16Counter = 0;
+let qfCounter = 0;
+let sfCounter = 0;
+
 const createDummyNode = (level: number, prefix: string, side: 'left' | 'right'): MatchNode => {
   nodeCounter++;
   
@@ -83,31 +104,34 @@ const createDummyNode = (level: number, prefix: string, side: 'left' | 'right'):
     const matchup = r32Matchups[leafCounter];
     team1Name = matchup[0];
     team2Name = matchup[1];
-    date = `Jun ${28 + Math.floor(leafCounter / 3)}, 2026 • 15:00`;
+    date = r32Dates[leafCounter] || 'TBD';
     leafCounter++;
   } else if (level === 3) {
     team1Name = `Winner R32`;
     team2Name = `Winner R32`;
-    date = `Jul ${4 + Math.floor(nodeCounter / 2)}, 2026 • 20:00`;
+    date = r16Dates[r16Counter] || 'TBD';
+    r16Counter++;
   } else if (level === 2) {
     team1Name = `Winner R16`;
     team2Name = `Winner R16`;
-    date = `Jul ${10 + Math.floor(nodeCounter / 4)}, 2026 • 16:00`;
+    date = qfDates[qfCounter] || 'TBD';
+    qfCounter++;
   } else if (level === 1) {
     team1Name = `Winner QF`;
     team2Name = `Winner QF`;
-    date = `Jul 14, 2026 • 20:00`;
+    date = sfDates[sfCounter] || 'TBD';
+    sfCounter++;
   }
   
-  // Deterministic fake scores for visual purposes (some matches finished)
-  const isFinished = level === 4 && leafCounter < 8; // Just make left bracket "finished" for demo
-  const t1Score = isFinished ? (leafCounter * 3) % 4 : undefined;
-  const t2Score = isFinished ? (leafCounter * 7) % 3 : undefined;
+  // No matches are finished yet
+  const isFinished = false;
+  const t1Score = undefined;
+  const t2Score = undefined;
   
   const match: Match = {
     id: `${prefix}-${level}-${nodeCounter}`,
     date: date,
-    status: isFinished ? 'finished' : 'pending',
+    status: 'pending',
     team1: {
       id: `t1-${prefix}-${level}-${nodeCounter}`,
       name: team1Name,

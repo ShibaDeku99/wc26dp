@@ -3,17 +3,18 @@ import { Badge } from '@/components/ui/badge';
 
 interface StatusBadgeProps {
   status: MatchStatus;
+  liveMinute?: number;
   className?: string;
 }
 
-export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
+export function StatusBadge({ status, liveMinute, className = '' }: StatusBadgeProps) {
   const config: Record<MatchStatus, { label: string; classes: string }> = {
     scheduled: {
       label: 'Scheduled',
       classes: 'bg-blue-500/20 text-blue-400 border-blue-500/30 hover:bg-blue-500/30',
     },
     live: {
-      label: '● LIVE',
+      label: liveMinute !== undefined ? `● ${liveMinute}'` : '● LIVE',
       classes: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 animate-pulse hover:bg-emerald-500/30',
     },
     finished: {

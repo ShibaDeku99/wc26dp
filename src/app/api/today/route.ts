@@ -5,6 +5,9 @@ import { getOrSetCache, CACHE_TTL } from '@/lib/cache';
 import { fetchFixtures } from '@/lib/worldcup26-api';
 import type { Match, TodayData } from '@/types/football';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 60;
+
 export async function GET() {
   try {
     const today = new Date().toISOString().split('T')[0];

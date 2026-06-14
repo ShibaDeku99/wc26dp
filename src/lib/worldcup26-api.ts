@@ -144,38 +144,7 @@ export async function fetchFixtures(): Promise<Match[]> {
       }
     }
 
-    // --- SMART SIMULATION LAYER ---
-    // If the API hasn't updated the match status, we auto-progress it based on the actual clock!
-    const matchTime = new Date(isoDate).getTime();
-    const now = new Date().getTime();
-    const elapsedMs = now - matchTime;
-    
-    // Auto-fix Status if API is lagging
-    if (status !== 'finished') {
-      if (elapsedMs > 115 * 60 * 1000) {
-        // More than 115 minutes passed -> Force Finished
-        status = 'finished';
-      } else if (elapsedMs > 0 && elapsedMs <= 115 * 60 * 1000) {
-        // Currently playing -> Force Live
-        status = 'live';
-      }
-    }
 
-    // Auto-fix Scores if API is lagging (e.g. API still says 0-0 or null but match is live/finished)
-    if ((status === 'live' || status === 'finished') && (homeScore === null || homeScore === 0) && (awayScore === null || awayScore === 0)) {
-      // Use a deterministic seed based on team IDs to generate realistic, persistent scores
-      const seed = parseInt(homeTeamRaw.id || '0') + parseInt(awayTeamRaw.id || '0');
-      
-      if (status === 'finished') {
-        homeScore = (seed * 3) % 4;
-        awayScore = (seed * 7) % 3;
-      } else if (status === 'live') {
-        const minutesPlayed = Math.floor(elapsedMs / 60000);
-        // Gradually increase score as time passes
-        homeScore = minutesPlayed > 30 ? ((seed * 3) % 3) : 0;
-        awayScore = minutesPlayed > 60 ? ((seed * 7) % 2) : 0;
-      }
-    }
 
     const homeTeamName = game.home_team_name_en || homeTeamRaw.name_en || 'TBD';
     const awayTeamName = game.away_team_name_en || awayTeamRaw.name_en || 'TBD';
@@ -211,9 +180,10 @@ export async function fetchFixtures(): Promise<Match[]> {
 }
 
 export async function fetchStandings(): Promise<Record<string, Standing[]>> {
-  const [groupsData, teams] = await Promise.all([
+  const [groupsData, teams, matches] = await Promise.all([
     fetchRaw('/get/groups'),
     fetchTeamsData(),
+    fetchFixtures() // Call fetchFixtures to get real-time scores
   ]);
 
   if (!groupsData?.groups) return {};
@@ -221,18 +191,11 @@ export async function fetchStandings(): Promise<Record<string, Standing[]>> {
   const teamMap = new Map(teams.map((t: any) => [String(t.id), t]));
   const result: Record<string, Standing[]> = {};
 
+  // First, initialize the standings from the groups structure with 0s
   for (const group of groupsData.groups) {
     const groupName = `Group ${group.name}`;
-    
     result[groupName] = group.teams.map((t: any): Standing => {
       const teamRaw: any = teamMap.get(String(t.team_id)) || {};
-      
-      const safeInt = (val: any) => {
-        if (!val || val === 'null') return 0;
-        const parsed = parseInt(val);
-        return isNaN(parsed) ? 0 : parsed;
-      };
-
       return {
         team: {
           id: String(t.team_id),
@@ -241,18 +204,66 @@ export async function fetchStandings(): Promise<Record<string, Standing[]>> {
           flag: teamRaw.flag || '',
           group: group.name,
         },
-        played: safeInt(t.mp),
-        won: safeInt(t.w),
-        drawn: safeInt(t.d),
-        lost: safeInt(t.l),
-        goalsFor: safeInt(t.gf),
-        goalsAgainst: safeInt(t.ga),
-        goalDifference: safeInt(t.gd),
-        points: safeInt(t.pts),
+        played: 0,
+        won: 0,
+        drawn: 0,
+        lost: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        goalDifference: 0,
+        points: 0,
       };
     });
+  }
 
-    // Sort by points, then gd, then gf
+  // Then, apply real-time match results to the standings
+  if (matches && matches.length > 0) {
+    matches.forEach(match => {
+      // Only process group stage matches that have started
+      if (match.round.startsWith('Matchday') && (match.status === 'live' || match.status === 'finished')) {
+        const groupName = match.group;
+        if (!groupName || !result[groupName]) return;
+
+        const homeStanding = result[groupName].find(s => s.team.id === match.homeTeam.id);
+        const awayStanding = result[groupName].find(s => s.team.id === match.awayTeam.id);
+
+        if (homeStanding && awayStanding && match.homeScore !== null && match.awayScore !== null) {
+          // Update played count
+          homeStanding.played += 1;
+          awayStanding.played += 1;
+
+          // Update goals
+          homeStanding.goalsFor += match.homeScore;
+          homeStanding.goalsAgainst += match.awayScore;
+          awayStanding.goalsFor += match.awayScore;
+          awayStanding.goalsAgainst += match.homeScore;
+
+          // Update goal difference
+          homeStanding.goalDifference = homeStanding.goalsFor - homeStanding.goalsAgainst;
+          awayStanding.goalDifference = awayStanding.goalsFor - awayStanding.goalsAgainst;
+
+          // Update points and W/D/L
+          if (match.homeScore > match.awayScore) {
+            homeStanding.won += 1;
+            homeStanding.points += 3;
+            awayStanding.lost += 1;
+          } else if (match.homeScore < match.awayScore) {
+            awayStanding.won += 1;
+            awayStanding.points += 3;
+            homeStanding.lost += 1;
+          } else {
+            homeStanding.drawn += 1;
+            awayStanding.drawn += 1;
+            homeStanding.points += 1;
+            awayStanding.points += 1;
+          }
+        }
+      }
+    });
+  }
+
+  // Finally, sort each group
+  for (const groupName in result) {
     result[groupName].sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points;
       if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
@@ -375,14 +386,8 @@ export async function fetchMatchDetail(id: string): Promise<MatchDetail | null> 
         // AUTO FETCH ID of the ongoing match pair!
         let liveMatchId = await FlashscoreScraper.autoFetchMatchId(match.homeTeam.name, match.awayTeam.name);
         
-        // If tournament hasn't started or API returns null, use pseudo-random realistic fallback to test UI
-        if (!liveMatchId) {
-          const placeholders = ['14083117', '14023932', '10385740', '10385742'];
-          const charCodeSum = match.homeTeam.name.charCodeAt(0) + match.awayTeam.name.charCodeAt(0);
-          liveMatchId = placeholders[charCodeSum % placeholders.length];
-        }
-
-        // Optimize: Run all 3 RapidAPI calls concurrently to reduce latency and increase cache to 60s to limit API usage
+        if (liveMatchId) {
+          // Optimize: Run all 3 RapidAPI calls concurrently to reduce latency and increase cache to 60s to limit API usage
         const fetchOpts = {
           headers: {
             'Content-Type': 'application/json',
@@ -392,9 +397,8 @@ export async function fetchMatchDetail(id: string): Promise<MatchDetail | null> 
           next: { revalidate: 60 } // Hạn chế call API nhiều lần bằng cách cache 60s
         };
 
-        const [statsRes, detailsRes, incidentsRes] = await Promise.all([
+        const [statsRes, incidentsRes] = await Promise.all([
           fetch(`https://sofascore6.p.rapidapi.com/api/sofascore/v1/match/statistics?match_id=${liveMatchId}`, fetchOpts),
-          fetch(`https://sofascore6.p.rapidapi.com/api/sofascore/v1/match/details?match_id=${liveMatchId}`, fetchOpts),
           fetch(`https://sofascore6.p.rapidapi.com/api/sofascore/v1/match/incidents?match_id=${liveMatchId}`, fetchOpts)
         ]);
 
@@ -433,15 +437,6 @@ export async function fetchMatchDetail(id: string): Promise<MatchDetail | null> 
           }
         }
 
-        if (detailsRes.ok) {
-          const detailsJson = await detailsRes.json();
-          if (detailsJson.homeScore?.current !== undefined) {
-            match.homeScore = detailsJson.homeScore.current;
-          }
-          if (detailsJson.awayScore?.current !== undefined) {
-            match.awayScore = detailsJson.awayScore.current;
-          }
-        }
 
         if (incidentsRes.ok) {
           const incidentsJson = await incidentsRes.json();
@@ -490,7 +485,7 @@ export async function fetchMatchDetail(id: string): Promise<MatchDetail | null> 
             events = parsedEvents.sort((a, b) => b.time - a.time);
           }
         }
-
+        } // close if (liveMatchId)
       } catch (e) {
         console.error('Failed to fetch from Sofascore RapidAPI', e);
       }
