@@ -3,7 +3,7 @@
 // Uses https://worldcup26.ir
 // ============================================
 
-import type { Team, Match, MatchStatus, Standing, MatchDetail, MatchEvent, MatchStatistic, Group } from '@/types/football';
+import type { Team, Match, MatchStatus, Standing, MatchDetail, MatchEvent, Group } from '@/types/football';
 import { FlashscoreScraper } from './flashscore-scraper';
 
 const BASE_URL = 'https://worldcup26.ir';
@@ -143,8 +143,27 @@ export async function fetchFixtures(): Promise<Match[]> {
         isoDate = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}T${timePart}:00${offsetString}`;
       }
     }
-
-
+    const matchTime = new Date(isoDate).getTime();
+    let now = new Date().getTime();
+    
+    // Fix for Vercel/Production servers running in 2024: Simulating 2026 time
+    if (new Date().getFullYear() < 2026) {
+      const timeOffset = new Date('2026-06-14T00:00:00Z').getTime() - new Date('2024-06-14T00:00:00Z').getTime();
+      now += timeOffset;
+    }
+    
+    const elapsedMs = now - matchTime;
+    
+    // Auto-fix Status if API is lagging
+    if (status !== 'finished') {
+      if (elapsedMs > 115 * 60 * 1000) {
+        // More than 115 minutes passed -> Force Finished
+        status = 'finished';
+      } else if (elapsedMs > 0 && elapsedMs <= 115 * 60 * 1000) {
+        // Currently playing -> Force Live
+        status = 'live';
+      }
+    }
 
     const homeTeamName = game.home_team_name_en || homeTeamRaw.name_en || 'TBD';
     const awayTeamName = game.away_team_name_en || awayTeamRaw.name_en || 'TBD';
@@ -375,11 +394,8 @@ export async function fetchMatchDetail(id: string): Promise<MatchDetail | null> 
     }
   }
 
-  // Only crawl Match Statistics, Graph, and Lineups if the match is live or finished
+  // Only crawl Match Events and Lineups if the match is live or finished
   if (match.status !== 'scheduled') {
-    let rapidApiStats = null;
-    let fallbackGraphPoints: any[] = [];
-
     // Use Sofascore RapidAPI for both LIVE and FINISHED matches to ensure events show up
     if (match.status === 'live' || match.status === 'finished') {
       try {
@@ -387,7 +403,7 @@ export async function fetchMatchDetail(id: string): Promise<MatchDetail | null> 
         let liveMatchId = await FlashscoreScraper.autoFetchMatchId(match.homeTeam.name, match.awayTeam.name);
         
         if (liveMatchId) {
-          // Optimize: Run all 3 RapidAPI calls concurrently to reduce latency and increase cache to 60s to limit API usage
+          // Optimize: Run RapidAPI call concurrently to reduce latency and increase cache to 60s to limit API usage
         const fetchOpts = {
           headers: {
             'Content-Type': 'application/json',
@@ -397,45 +413,7 @@ export async function fetchMatchDetail(id: string): Promise<MatchDetail | null> 
           next: { revalidate: 60 } // Hạn chế call API nhiều lần bằng cách cache 60s
         };
 
-        const [statsRes, incidentsRes] = await Promise.all([
-          fetch(`https://sofascore6.p.rapidapi.com/api/sofascore/v1/match/statistics?match_id=${liveMatchId}`, fetchOpts),
-          fetch(`https://sofascore6.p.rapidapi.com/api/sofascore/v1/match/incidents?match_id=${liveMatchId}`, fetchOpts)
-        ]);
-
-        if (statsRes.ok) {
-          const statsJson = await statsRes.json();
-          // The RapidAPI returns an array directly: [ { period: "ALL", groups: [...] }, ... ]
-          if (Array.isArray(statsJson) && statsJson.length > 0) {
-            rapidApiStats = statsJson.map((periodObj: any) => {
-              const flatStats: MatchStatistic[] = [];
-              if (periodObj.groups) {
-                periodObj.groups.forEach((group: any) => {
-                  if (group.statisticsItems) {
-                    group.statisticsItems.forEach((item: any) => {
-                      flatStats.push({
-                        category: group.groupName,
-                        label: item.name,
-                        home: item.home,
-                        away: item.away,
-                        homeValue: item.homeValue,
-                        awayValue: item.awayValue
-                      });
-                    });
-                  }
-                });
-              }
-              
-              let periodLabel = 'Full Time';
-              if (periodObj.period === '1ST') periodLabel = '1st Half';
-              if (periodObj.period === '2ND') periodLabel = '2nd Half';
-
-              return {
-                period: periodLabel,
-                statistics: flatStats
-              };
-            });
-          }
-        }
+        const incidentsRes = await fetch(`https://sofascore6.p.rapidapi.com/api/sofascore/v1/match/incidents?match_id=${liveMatchId}`, fetchOpts);
 
 
         if (incidentsRes.ok) {
@@ -491,23 +469,10 @@ export async function fetchMatchDetail(id: string): Promise<MatchDetail | null> 
       }
     }
 
-    if (rapidApiStats) {
-      // We got stats from the RapidAPI successfully
-      statistics = rapidApiStats;
-    } else {
-      // Fallback to FlashscoreScraper
-      const { statistics: stats, graphPoints: points, lineups: sofascoreLineups } = await FlashscoreScraper.getMatchStatistics(match.homeTeam.name, match.awayTeam.name);
-      statistics = stats as any;
-      if (points) fallbackGraphPoints = points as any;
-      if (sofascoreLineups && !lineups) lineups = sofascoreLineups;
-    }
-
     return {
       ...match,
       events,
-      statistics,
-      graphPoints: fallbackGraphPoints,
-      ...(lineups ? { lineups } : {}), // Zafronix/Flashscore lineups
+      ...(lineups ? { lineups } : {}), // Zafronix lineups
       attendance,
       weather,
       referee
@@ -517,8 +482,6 @@ export async function fetchMatchDetail(id: string): Promise<MatchDetail | null> 
   return {
     ...match,
     events,
-    statistics: [],
-    graphPoints: [],
     ...(lineups ? { lineups } : {}),
     attendance,
     weather,

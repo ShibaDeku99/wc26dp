@@ -12,7 +12,7 @@ export function LanguageToggle() {
       size="icon"
       onClick={() => setLanguage(language === 'en' ? 'vi' : 'en')}
       className="w-9 h-9 rounded-full border border-slate-200 dark:border-white/10 flex items-center justify-center font-bold text-xs"
-      title="Toggle Language"
+      title="Đổi ngôn ngữ"
     >
       {language === 'en' ? 'VI' : 'EN'}
     </Button>

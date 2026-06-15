@@ -5,7 +5,6 @@ import { MatchCard } from './match-card';
 import type { Match } from '@/types/football';
 import { Clock, MapPin, Users, Thermometer } from 'lucide-react';
 import { TVScoreboard } from './tv-scoreboard';
-import { cn } from '@/lib/utils';
 
 interface Props {
   nextMatch: Match;
@@ -49,34 +48,31 @@ export function NextMatchCountdown({ nextMatch, onLive }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-300 dark:border-white/[0.06] bg-gradient-to-b from-white/[0.04] to-transparent p-6 text-center relative overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-emerald-500/10 blur-[50px] rounded-full" />
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/70 p-5 text-center shadow-sm backdrop-blur-xl dark:border-white/[0.06] dark:bg-white/[0.025] lg:p-6">
+      <div className="absolute left-1/2 top-0 h-32 w-64 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[60px]" />
       
       <div className="relative z-10 flex flex-col items-center">
         <div className="flex items-center gap-2 mb-4 text-emerald-700 dark:text-emerald-400">
           <Clock className="w-4 h-4" />
-          <span className="text-xs font-semibold uppercase tracking-widest">Next Match Starts In</span>
+          <span className="text-xs font-semibold uppercase tracking-widest">Trận tiếp theo bắt đầu sau</span>
         </div>
 
-        <div className="flex items-center gap-3 lg:gap-6 mb-6">
+        <div className="mb-6 grid w-full max-w-lg grid-cols-4 gap-2">
           <div className="flex flex-col items-center">
             <span className="text-3xl lg:text-4xl font-mono font-bold text-slate-900 dark:text-white">{String(timeLeft.d).padStart(2, '0')}</span>
-            <span className="text-[10px] text-slate-600 dark:text-white/40 uppercase tracking-widest mt-1">Days</span>
+            <span className="text-[10px] text-slate-600 dark:text-white/40 uppercase tracking-widest mt-1">Ngày</span>
           </div>
-          <span className="text-2xl text-slate-500 dark:text-white/20 font-light -mt-4">:</span>
           <div className="flex flex-col items-center">
             <span className="text-3xl lg:text-4xl font-mono font-bold text-slate-900 dark:text-white">{String(timeLeft.h).padStart(2, '0')}</span>
-            <span className="text-[10px] text-slate-600 dark:text-white/40 uppercase tracking-widest mt-1">Hours</span>
+            <span className="text-[10px] text-slate-600 dark:text-white/40 uppercase tracking-widest mt-1">Giờ</span>
           </div>
-          <span className="text-2xl text-slate-500 dark:text-white/20 font-light -mt-4">:</span>
           <div className="flex flex-col items-center">
             <span className="text-3xl lg:text-4xl font-mono font-bold text-slate-900 dark:text-white">{String(timeLeft.m).padStart(2, '0')}</span>
-            <span className="text-[10px] text-slate-600 dark:text-white/40 uppercase tracking-widest mt-1">Mins</span>
+            <span className="text-[10px] text-slate-600 dark:text-white/40 uppercase tracking-widest mt-1">Phút</span>
           </div>
-          <span className="text-2xl text-slate-500 dark:text-white/20 font-light -mt-4">:</span>
           <div className="flex flex-col items-center">
             <span className="text-3xl lg:text-4xl font-mono font-bold text-slate-900 dark:text-white">{String(timeLeft.s).padStart(2, '0')}</span>
-            <span className="text-[10px] text-slate-600 dark:text-white/40 uppercase tracking-widest mt-1">Secs</span>
+            <span className="text-[10px] text-slate-600 dark:text-white/40 uppercase tracking-widest mt-1">Giây</span>
           </div>
         </div>
 

@@ -1,407 +1,361 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { useLanguage } from '@/lib/i18n';
-
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import {
-  Users, Calendar, Trophy, BarChart3, Radio,
-  ArrowRight, Globe, MapPin, Sparkles, Network,
+  ArrowRight,
+  BarChart3,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  Radio,
+  ShieldCheck,
+  Sparkles,
+  Trophy,
+  Users,
 } from 'lucide-react';
-import { DashboardCard } from '@/components/dashboard/dashboard-card';
 import { MatchCard } from '@/components/dashboard/match-card';
 import { NextMatchCountdown } from '@/components/dashboard/next-match-countdown';
+import { TournamentSidebar } from '@/components/dashboard/tournament-sidebar';
 import { LoadingSkeleton } from '@/components/shared/loading-skeleton';
-import { EmptyState } from '@/components/shared/empty-state';
-import { getGroupColor } from '@/lib/group-colors';
 import { cn } from '@/lib/utils';
-import type { TodayData, Match } from '@/types/football';
+import type { Match, TodayData } from '@/types/football';
+
+function localDateKey(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+}
 
 const QUICK_LINKS = [
-  { href: '/groups', label: 'Groups', icon: Users, desc: '12 groups • 48 teams' },
-  { href: '/fixtures', label: 'Fixtures', icon: Calendar, desc: 'Full schedule' },
-  { href: '/standings', label: 'Standings', icon: BarChart3, desc: 'Group tables' },
-  { href: '/bracket', label: 'Bracket', icon: Network, desc: 'Knockout Stage' },
+  { href: '/groups', label: 'Khám phá vòng bảng', icon: Users },
+  { href: '/standings', label: 'Bảng xếp hạng trực tiếp', icon: BarChart3 },
+  { href: '/bracket', label: 'Sơ đồ vòng loại trực tiếp', icon: Trophy },
 ];
 
+const EMPTY_MATCHES: Match[] = [];
+
 export default function HomePage() {
-  const { t } = useLanguage();
-  const [mounted, setMounted] = useState(false);
+  const [selectedDate, setSelectedDate] = useState('');
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const { data: todayData, isLoading: todayLoading, refetch: refetchToday } = useQuery<{ data: TodayData }>({
+  const { data: todayData, isLoading: todayLoading, refetch: refetchToday } = useQuery<{
+    data: TodayData;
+  }>({
     queryKey: ['today'],
-    queryFn: () => fetch('/api/today').then(r => r.json()),
+    queryFn: () => fetch('/api/today').then(response => response.json()),
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: fixturesData, isLoading: fixturesLoading } = useQuery<{ data: Match[] }>({
     queryKey: ['fixtures'],
-    queryFn: () => fetch('/api/fixtures').then(r => r.json()),
+    queryFn: () => fetch('/api/fixtures').then(response => response.json()),
     staleTime: 15 * 60 * 1000,
   });
 
-  const allMatches = fixturesData?.data || [];
-  const matchesPlayed = allMatches.filter(m => m.status === 'finished').length;
-
+  const allMatches = useMemo(() => fixturesData?.data ?? [], [fixturesData?.data]);
   const today = todayData?.data;
+  const upcoming = today?.upcoming ?? EMPTY_MATCHES;
+  const liveMatches = today?.live ?? EMPTY_MATCHES;
+  const finishedMatches = today?.finished ?? EMPTY_MATCHES;
 
-  // Extract 48 unique team flags from all matches
-  const uniqueTeamFlags = useMemo(() => {
-    if (!allMatches || allMatches.length === 0) return [];
-    const flagsMap = new Map<string, string>();
-    allMatches.forEach(m => {
-      if (m.homeTeam?.id && m.homeTeam?.flag && !m.homeTeam.name.includes('TBD') && !m.homeTeam.name.includes('Winner')) {
-        flagsMap.set(m.homeTeam.id, m.homeTeam.flag);
-      }
-      if (m.awayTeam?.id && m.awayTeam?.flag && !m.awayTeam.name.includes('TBD') && !m.awayTeam.name.includes('Winner')) {
-        flagsMap.set(m.awayTeam.id, m.awayTeam.flag);
-      }
+  const matchesPlayed = allMatches.filter(match => match.status === 'finished').length;
+  const liveCount = allMatches.filter(match => match.status === 'live').length;
+  const progress = Math.min(100, Math.round((matchesPlayed / 104) * 100));
+
+  const uniqueTeams = useMemo(() => {
+    const teams = new Set<string>();
+    allMatches.forEach(match => {
+      if (!match.homeTeam.name.includes('TBD')) teams.add(match.homeTeam.id);
+      if (!match.awayTeam.name.includes('TBD')) teams.add(match.awayTeam.id);
     });
-    return Array.from(flagsMap.values()).slice(0, 48); // Ensure max 48
+    return teams.size || 48;
   }, [allMatches]);
 
-  // Find the absolute next upcoming match across all dates
-  const nextAbsoluteMatch = useMemo(() => {
-    if (!today?.upcoming || today.upcoming.length === 0) return null;
-    return [...today.upcoming].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
-  }, [today?.upcoming]);
+  const nextAbsoluteMatch = useMemo(
+    () =>
+      [...upcoming].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      )[0] ?? null,
+    [upcoming]
+  );
 
-  // Extract unique dates for upcoming matches based on user's local timezone
-  const upcomingDates = useMemo(() => {
-    if (!today?.upcoming) return [];
-    const dates = new Set<string>();
-    today.upcoming.forEach(m => {
-      if (m.date) {
-        // Convert to local date string (YYYY-MM-DD format)
-        const d = new Date(m.date);
-        const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        dates.add(localDate);
-      }
-    });
-    return Array.from(dates).sort();
-  }, [today?.upcoming]);
+  const upcomingDates = useMemo(
+    () => Array.from(new Set(upcoming.map(match => localDateKey(match.date)))).sort(),
+    [upcoming]
+  );
 
-  const [selectedDate, setSelectedDate] = useState<string>('');
+  const activeDate = selectedDate || upcomingDates[0] || '';
+  const filteredUpcoming = useMemo(
+    () => upcoming.filter(match => localDateKey(match.date) === activeDate),
+    [upcoming, activeDate]
+  );
 
-  // Set initial selected date
-  useEffect(() => {
-    if (upcomingDates.length > 0 && !selectedDate) {
-      setSelectedDate(upcomingDates[0]);
-    }
-  }, [upcomingDates, selectedDate]);
-
-  const filteredUpcoming = useMemo(() => {
-    if (!today?.upcoming || !selectedDate) return [];
-    return today.upcoming.filter(m => {
-      const d = new Date(m.date);
-      const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      return localDate === selectedDate;
-    });
-  }, [today?.upcoming, selectedDate]);
-
-  if (!mounted) return null;
+  const stats = [
+    {
+      label: 'Đội tuyển',
+      value: fixturesLoading ? '--' : uniqueTeams,
+      detail: 'Thi đấu tại 12 bảng',
+      icon: Users,
+      accent: 'emerald',
+    },
+    {
+      label: 'Tổng số trận',
+      value: Math.max(104, allMatches.length),
+      detail: '72 trận vòng bảng + 32 trận loại trực tiếp',
+      icon: CalendarDays,
+      accent: 'cyan',
+    },
+    {
+      label: 'Đã thi đấu',
+      value: matchesPlayed,
+      detail: `Hoàn thành ${progress}%`,
+      icon: CheckCircle2,
+      accent: 'violet',
+    },
+    {
+      label: 'Đang trực tiếp',
+      value: liveCount,
+      detail: liveCount ? 'Theo dõi từng khoảnh khắc' : 'Đang chờ trận tiếp theo',
+      icon: Radio,
+      accent: 'rose',
+    },
+  ] as const;
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-300 dark:border-white/[0.06] p-6 lg:p-10 min-h-[280px] lg:min-h-[340px] flex flex-col justify-center">
-        {/* Background Image & Overlays */}
-        <div className="absolute inset-0">
-          <img 
-            src="https://media.licdn.com/dms/image/v2/D5612AQEujhupMumKFg/article-cover_image-shrink_720_1280/article-cover_image-shrink_720_1280/0/1684522009244?e=2147483647&v=beta&t=YYJ7gpXcGtPVHmIcjgaLasg2lAP7Pd8NeAarrzZoCpE" 
-            alt="World Cup 2026 Banner" 
-            className="w-full h-full object-cover opacity-70" 
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-white dark:from-[#0a0f1c] via-white/50 dark:via-[#0a0f1c]/50 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-white/80 dark:from-[#0a0f1c]/80 via-transparent to-transparent" />
-        </div>
+    <div className="space-y-6 p-4 lg:p-6">
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-slate-950 px-5 py-6 text-white shadow-2xl shadow-slate-950/10 dark:border-white/[0.07] lg:px-8 lg:py-8">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_10%,rgba(34,211,238,0.2),transparent_30%),radial-gradient(circle_at_65%_100%,rgba(16,185,129,0.16),transparent_35%)]" />
+        <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full border border-white/[0.06]" />
+        <div className="pointer-events-none absolute -right-4 -top-12 h-48 w-48 rounded-full border border-white/[0.08]" />
 
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="h-4 w-4 text-fuchsia-700 dark:text-fuchsia-400" />
-            <span className="text-[11px] font-semibold text-fuchsia-700 dark:text-fuchsia-400 uppercase tracking-wider">
-              {t('dashboard.tournamentInfo')}
-            </span>
-          </div>
-          <h1 className="text-3xl lg:text-5xl font-extrabold text-slate-900 dark:text-white mb-3 tracking-tight">
-            {t('dashboard.heroTitle')}
-            <span className="gradient-text block lg:inline lg:ml-3">Dashboard</span>
-          </h1>
-          <p className="text-sm lg:text-base text-slate-600 dark:text-white/40 max-w-xl leading-relaxed">
-            {t('dashboard.heroSubtitle')}
-          </p>
+        <div className="relative grid gap-7 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-end">
+          <div>
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300">
+              <Sparkles className="h-3.5 w-3.5" />
+              FIFA World Cup 2026
+            </div>
+            <h1 className="max-w-3xl text-3xl font-black tracking-[-0.04em] sm:text-4xl lg:text-5xl">
+              Trung tâm điều hành
+              <span className="block text-emerald-300">giải đấu của bạn.</span>
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/50 lg:text-base">
+              Tỷ số trực tiếp, cuộc đua giành vé, lịch thi đấu và mọi diễn biến quan trọng
+              tại Hoa Kỳ, Mexico và Canada.
+            </p>
 
-          {/* Host countries */}
-          <div className="flex items-center gap-4 mt-5">
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-white/30">
-              <MapPin className="h-3 w-3" />
-              <img src="https://flagcdn.com/w20/us.png" srcSet="https://flagcdn.com/w40/us.png 2x" alt="USA" className="w-3.5 h-auto shadow-sm rounded-[1px]" />
-              <span>USA</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-white/30">
-              <MapPin className="h-3 w-3" />
-              <img src="https://flagcdn.com/w20/mx.png" srcSet="https://flagcdn.com/w40/mx.png 2x" alt="Mexico" className="w-3.5 h-auto shadow-sm rounded-[1px]" />
-              <span>Mexico</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-white/30">
-              <MapPin className="h-3 w-3" />
-              <img src="https://flagcdn.com/w20/ca.png" srcSet="https://flagcdn.com/w40/ca.png 2x" alt="Canada" className="w-3.5 h-auto shadow-sm rounded-[1px]" />
-              <span>Canada</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-        <DashboardCard
-          title="Teams"
-          value={48}
-          subtitle="48 national teams"
-          icon={<Users className="h-5 w-5" />}
-        >
-          {uniqueTeamFlags.length > 0 && (
-            <div className="flex flex-wrap gap-1 opacity-50 pt-1 justify-center">
-              {uniqueTeamFlags.map((flag, idx) => (
-                <div key={idx} className="w-[14px] h-[10px] rounded-[1px] overflow-hidden bg-slate-100 dark:bg-white/5 relative shadow-sm hover:scale-150 hover:z-10 transition-transform cursor-pointer" title={`Team ${idx + 1}`}>
-                  <img src={flag} alt="flag" className="w-full h-full object-cover" />
-                </div>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {QUICK_LINKS.map(link => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3.5 py-2.5 text-xs font-semibold text-white/70 transition hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-white"
+                >
+                  <link.icon className="h-4 w-4 text-emerald-300" />
+                  {link.label}
+                  <ArrowRight className="h-3.5 w-3.5 text-white/25 transition-transform group-hover:translate-x-0.5 group-hover:text-emerald-300" />
+                </Link>
               ))}
             </div>
-          )}
-        </DashboardCard>
-        <DashboardCard
-          title="Groups"
-          value={12}
-          subtitle="Group A to L"
-          icon={<Globe className="h-5 w-5" />}
-        >
-          <div className="flex flex-wrap gap-1 opacity-80 pt-2 justify-center">
-            {['A','B','C','D','E','F','G','H','I','J','K','L'].map((g) => {
-              return (
-                <div key={g} className={cn("w-[18px] h-[14px] rounded-[2px] border flex items-center justify-center text-[9px] font-bold shadow-sm", "bg-emerald-500/10 dark:bg-emerald-500/20", "border-emerald-500/30", "text-emerald-700 dark:text-emerald-400")}>
-                  {g}
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 backdrop-blur-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/35">
+                  Tiến độ giải đấu
+                </p>
+                <p className="mt-1 text-2xl font-black">{matchesPlayed} / 104</p>
+              </div>
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border-[5px] border-emerald-400/20 text-sm font-black text-emerald-300">
+                {progress}%
+              </div>
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="mt-3 flex items-center justify-between text-[10px] text-white/35">
+              <span>Vòng bảng</span>
+              <span>Chung kết / 19 tháng 7</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {stats.map(item => {
+          const accentStyles = {
+            emerald: 'border-emerald-500/15 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
+            cyan: 'border-cyan-500/15 bg-cyan-500/10 text-cyan-600 dark:text-cyan-300',
+            violet: 'border-violet-500/15 bg-violet-500/10 text-violet-600 dark:text-violet-300',
+            rose: 'border-rose-500/15 bg-rose-500/10 text-rose-600 dark:text-rose-300',
+          };
+
+          return (
+            <div
+              key={item.label}
+              className="group rounded-2xl border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-lg dark:border-white/[0.06] dark:bg-white/[0.025] lg:p-5"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-white/30">
+                    {item.label}
+                  </p>
+                  <p className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white">
+                    {item.value}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        </DashboardCard>
-        <DashboardCard
-          title="Total Matches"
-          value={Math.max(104, allMatches.length)}
-          subtitle="72 Group + 32 Knockout"
-          icon={<Calendar className="h-5 w-5" />}
-        >
-          <div className="flex items-center gap-1.5 opacity-60 pt-2">
-            <div className="flex-[2.25]">
-              <div className="text-[8px] mb-1 font-medium tracking-wider text-fuchsia-300">GROUP (72)</div>
-              <div className="h-1 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-fuchsia-500/70 w-full" />
+                <div className={cn('rounded-xl border p-2.5', accentStyles[item.accent])}>
+                  <item.icon className="h-4 w-4" />
+                </div>
               </div>
+              <p className="mt-3 text-[11px] text-slate-500 dark:text-white/35">{item.detail}</p>
             </div>
-            <div className="flex-1">
-              <div className="text-[8px] mb-1 font-medium tracking-wider text-purple-300">K.O (32)</div>
-              <div className="h-1 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-purple-500/70 w-full" />
+          );
+        })}
+      </section>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+        <main className="min-w-0 space-y-7">
+          <section>
+            <div className="mb-3 flex items-end justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  {liveMatches.length > 0 ? (
+                    <Radio className="h-4 w-4 animate-pulse text-rose-500" />
+                  ) : (
+                    <Clock3 className="h-4 w-4 text-emerald-500" />
+                  )}
+                  <h2 className="text-lg font-black text-slate-950 dark:text-white">
+                    {liveMatches.length > 0 ? 'Trận đang diễn ra' : 'Trận tiếp theo'}
+                  </h2>
+                </div>
+                <p className="mt-1 text-xs text-slate-500 dark:text-white/35">
+                  {liveMatches.length > 0
+                    ? `${liveMatches.length} trận đang diễn ra`
+                    : 'Trận đấu sắp bắt đầu gần nhất'}
+                </p>
               </div>
-            </div>
-          </div>
-        </DashboardCard>
-        <DashboardCard
-          title="Matches Played"
-          value={matchesPlayed}
-          subtitle={`${Math.round((matchesPlayed / Math.max(104, allMatches.length)) * 100)}% complete`}
-          icon={<Trophy className="h-5 w-5" />}
-        >
-          <div className="pt-3 w-full opacity-80">
-            <div className="flex justify-between text-[8px] text-slate-600 dark:text-white/40 mb-1 font-medium tracking-wider">
-              <span>PROGRESS</span>
-              <span>104</span>
-            </div>
-            <div className="h-1.5 w-full bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden border border-slate-200 dark:border-white/5">
-              <div 
-                className="h-full bg-gradient-to-r from-purple-500 to-fuchsia-400 rounded-full relative" 
-                style={{ width: `${Math.round((matchesPlayed / Math.max(104, allMatches.length)) * 100)}%` }}
+              <Link
+                href="/fixtures"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-500 dark:text-emerald-400"
               >
-                <div className="absolute inset-0 bg-slate-300 dark:bg-white/20 animate-pulse" />
+                Tất cả lịch đấu <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            {todayLoading ? (
+              <LoadingSkeleton type="match" count={1} />
+            ) : liveMatches.length > 0 ? (
+              <div className="space-y-3">
+                {liveMatches.map(match => <MatchCard key={match.id} match={match} />)}
               </div>
-            </div>
-          </div>
-        </DashboardCard>
-      </div>
+            ) : nextAbsoluteMatch ? (
+              <NextMatchCountdown nextMatch={nextAbsoluteMatch} onLive={() => refetchToday()} />
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-10 text-center dark:border-white/10 dark:bg-white/[0.015]">
+                <ShieldCheck className="mx-auto mb-3 h-6 w-6 text-slate-300 dark:text-white/20" />
+                <p className="text-sm text-slate-500 dark:text-white/35">Chưa có trận đấu nào được lên lịch.</p>
+              </div>
+            )}
+          </section>
 
-      {/* Today's Matches */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Live Matches */}
-        <div className="xl:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {(!todayLoading && today?.live && today.live.length > 0) ? (
-                <>
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('dashboard.liveMatches')}</h2>
-                </>
-              ) : (
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('dashboard.nextMatch')}</h2>
-              )}
+          <section>
+            <div className="mb-3 flex items-end justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-cyan-500" />
+                  <h2 className="text-lg font-black text-slate-950 dark:text-white">Sắp diễn ra</h2>
+                </div>
+                <p className="mt-1 text-xs text-slate-500 dark:text-white/35">
+                  Xem các ngày thi đấu sắp tới
+                </p>
+              </div>
+              <Link
+                href="/fixtures"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-500 dark:text-emerald-400"
+              >
+                Toàn bộ lịch đấu <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
-            <Link
-              href="/fixtures"
-              className="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400 hover:text-emerald-300 transition-colors"
-            >
-              {t('dashboard.viewAll')} <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
 
-          {todayLoading ? (
-            <LoadingSkeleton type="match" count={2} />
-          ) : today?.live && today.live.length > 0 ? (
-            <div className="space-y-3">
-              {today.live.map(match => (
-                <MatchCard key={match.id} match={match} />
-              ))}
-            </div>
-          ) : nextAbsoluteMatch ? (
-            <NextMatchCountdown 
-              nextMatch={nextAbsoluteMatch} 
-              onLive={() => refetchToday()} 
-            />
-          ) : (
-            <div className="rounded-2xl border border-slate-300 dark:border-white/[0.06] bg-slate-100 dark:bg-white/[0.02] p-8 text-center">
-              <p className="text-sm text-slate-500 dark:text-white/30">No live matches at the moment</p>
-            </div>
-          )}
+            {!todayLoading && upcomingDates.length > 0 && (
+              <div className="mb-3 flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                {upcomingDates.map(dateString => {
+                  const date = new Date(`${dateString}T12:00:00`);
+                  const isActive = activeDate === dateString;
+                  return (
+                    <button
+                      key={dateString}
+                      type="button"
+                      onClick={() => setSelectedDate(dateString)}
+                      className={cn(
+                        'min-w-[76px] shrink-0 rounded-xl border px-3 py-2.5 text-left transition',
+                        isActive
+                          ? 'border-emerald-500/30 bg-emerald-500/12 text-emerald-700 shadow-[0_0_20px_rgba(16,185,129,0.08)] dark:text-emerald-300'
+                          : 'border-slate-200 bg-white/60 text-slate-500 hover:border-slate-300 hover:bg-white dark:border-white/[0.06] dark:bg-white/[0.02] dark:text-white/35 dark:hover:bg-white/[0.05]'
+                      )}
+                    >
+                      <span className="block text-[9px] font-bold uppercase tracking-wider">
+                        {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                      </span>
+                      <span className="mt-0.5 block text-xs font-bold">
+                        {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-          {/* Upcoming */}
-          <div className="flex items-center justify-between mt-6 mb-3">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Upcoming</h2>
-            <Link
-              href="/fixtures"
-              className="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400 hover:text-emerald-300 transition-colors"
-            >
-              Full schedule <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
+            {todayLoading ? (
+              <LoadingSkeleton type="match" count={3} />
+            ) : filteredUpcoming.length > 0 ? (
+              <div className="space-y-3">
+                {filteredUpcoming.map(match => <MatchCard key={match.id} match={match} />)}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-8 text-center dark:border-white/10 dark:bg-white/[0.015]">
+                <p className="text-sm text-slate-500 dark:text-white/35">Không có trận đấu trong ngày này.</p>
+              </div>
+            )}
+          </section>
 
-          {!todayLoading && upcomingDates.length > 0 && (
-            <div className="flex overflow-x-auto gap-2 pb-3 mb-1 no-scrollbar">
-              {upcomingDates.map(dateStr => {
-                const dateObj = new Date(dateStr);
-                const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-                const dayNum = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-                const isSelected = selectedDate === dateStr;
-
-                return (
-                  <button
-                    key={dateStr}
-                    onClick={() => setSelectedDate(dateStr)}
-                    className={`flex flex-col items-center justify-center flex-shrink-0 px-4 py-2 rounded-xl border transition-all ${
-                      isSelected
-                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-700 dark:text-emerald-400'
-                        : 'bg-slate-100 dark:bg-white/[0.02] border-slate-300 dark:border-white/[0.06] text-slate-600 dark:text-white/50 hover:bg-slate-100 dark:bg-white/[0.05]'
-                    }`}
-                  >
-                    <span className="text-[10px] font-bold uppercase tracking-wider">{dayName}</span>
-                    <span className="text-xs font-semibold">{dayNum}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {todayLoading ? (
-            <LoadingSkeleton type="match" count={3} />
-          ) : filteredUpcoming.length > 0 ? (
-            <div className="space-y-3">
-              {filteredUpcoming.map(match => (
-                <MatchCard key={match.id} match={match} />
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-slate-300 dark:border-white/[0.06] bg-slate-100 dark:bg-white/[0.02] p-8 text-center">
-              <p className="text-sm text-slate-500 dark:text-white/30">No upcoming matches scheduled today</p>
-            </div>
-          )}
-
-          {/* Recent Results */}
-          {today?.finished && today.finished.length > 0 && (
-            <>
-              <div className="flex items-center justify-between mt-6">
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Recent Results</h2>
+          {finishedMatches.length > 0 && (
+            <section>
+              <div className="mb-3 flex items-end justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-violet-500" />
+                    <h2 className="text-lg font-black text-slate-950 dark:text-white">Kết quả gần đây</h2>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-white/35">
+                    Các tỷ số chung cuộc mới nhất
+                  </p>
+                </div>
                 <Link
                   href="/results"
-                  className="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400 hover:text-emerald-300 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-500 dark:text-emerald-400"
                 >
-                  All results <ArrowRight className="h-3 w-3" />
+                  Tất cả kết quả <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
               <div className="space-y-3">
-                {today.finished.map(match => (
+                {finishedMatches.slice(0, 4).map(match => (
                   <MatchCard key={match.id} match={match} compact />
                 ))}
               </div>
-            </>
+            </section>
           )}
-        </div>
+        </main>
 
-        {/* Quick Links Sidebar */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Quick Links</h2>
-          <div className="space-y-2">
-            {QUICK_LINKS.map(link => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="group flex items-center gap-3 p-3.5 rounded-xl border border-slate-300 dark:border-white/[0.06] bg-slate-100 dark:bg-white/[0.02] hover:bg-slate-100 dark:bg-white/[0.05] hover:border-emerald-500/20 transition-all duration-200"
-              >
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500/20 to-cyan-500/10 flex items-center justify-center text-emerald-700 dark:text-emerald-400 group-hover:scale-110 transition-transform">
-                  <link.icon className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{link.label}</p>
-                  <p className="text-[11px] text-slate-500 dark:text-white/30">{link.desc}</p>
-                </div>
-                <ArrowRight className="h-4 w-4 text-slate-500 dark:text-white/20 group-hover:text-emerald-700 dark:text-emerald-400 transition-colors" />
-              </Link>
-            ))}
-          </div>
-
-          {/* Tournament Info */}
-          <div className="rounded-2xl border border-slate-300 dark:border-white/[0.06] bg-gradient-to-br from-emerald-500/5 to-transparent p-5 mt-4">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3">Tournament Info</h3>
-            <div className="space-y-2.5 text-[11px]">
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-white/30">Format</span>
-                <span className="text-slate-700 dark:text-white/70">48 teams, 12 groups</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-white/30">Dates</span>
-                <span className="text-slate-700 dark:text-white/70">Jun 11 - Jul 19, 2026</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-white/30">Venues</span>
-                <span className="text-slate-700 dark:text-white/70">16 stadiums</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-white/30">Hosts</span>
-                <span className="flex items-center gap-1.5">
-                  <img src="https://flagcdn.com/w20/us.png" srcSet="https://flagcdn.com/w40/us.png 2x" alt="USA" className="w-4 h-auto shadow-sm rounded-sm" />
-                  <img src="https://flagcdn.com/w20/mx.png" srcSet="https://flagcdn.com/w40/mx.png 2x" alt="Mexico" className="w-4 h-auto shadow-sm rounded-sm" />
-                  <img src="https://flagcdn.com/w20/ca.png" srcSet="https://flagcdn.com/w40/ca.png 2x" alt="Canada" className="w-4 h-auto shadow-sm rounded-sm" />
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-white/30">Final</span>
-                <span className="text-slate-700 dark:text-white/70">MetLife Stadium, NJ</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <TournamentSidebar matches={allMatches} />
       </div>
     </div>
   );

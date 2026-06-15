@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import type { Match } from '@/types/football';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { TeamBadge } from '@/components/shared/team-badge';
 import { MapPin, Clock, ArrowRight, Users, Thermometer } from 'lucide-react';
 import { TVScoreboard } from '@/components/dashboard/tv-scoreboard';
 
@@ -57,7 +56,7 @@ export function MatchCard({ match, compact = false }: MatchCardProps) {
         '--card-border': `hsla(${homeHue}, 80%, 50%, 0.4)`,
         boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.2)'
       } as React.CSSProperties}
-      className="group relative overflow-hidden block rounded-2xl border border-slate-300 dark:border-white/[0.08] dark:border-t-white/[0.15] border-t-white/60 hover:border-[var(--card-border)] p-4 transition-all duration-300 hover:shadow-xl hover:scale-[1.01] backdrop-blur-xl bg-white/10 dark:bg-black/10"
+      className="group relative block overflow-hidden rounded-2xl border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--card-border)] hover:shadow-lg dark:border-white/[0.07] dark:bg-white/[0.025]"
     >
       {/* Glossy sheen overlay */}
       <div className="absolute inset-0 pointer-events-none z-20 bg-gradient-to-tr from-transparent via-white/20 dark:via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />

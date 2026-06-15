@@ -57,24 +57,9 @@ export type MatchEvent = {
   detail?: string;
 };
 
-export type MatchStatistic = {
-  category?: string;
-  label: string;
-  home: string | number;
-  away: string | number;
-  homeValue?: number;
-  awayValue?: number;
-};
-
-export type MatchStatsPeriod = {
-  period: 'Full Time' | '1st Half' | '2nd Half';
-  statistics: MatchStatistic[];
-};
 
 export type MatchDetail = Match & {
   events: MatchEvent[];
-  statistics: MatchStatsPeriod[];
-  graphPoints?: { minute: number; value: number }[];
   lineups?: any;
   attendance?: string;
   referee?: string;

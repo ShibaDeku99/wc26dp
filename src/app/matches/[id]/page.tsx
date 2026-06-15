@@ -17,8 +17,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import type { MatchDetail, MatchEvent } from '@/types/football';
 import { cn } from '@/lib/utils';
 import { TVScoreboard } from '@/components/dashboard/tv-scoreboard';
-import { MatchStatisticsTabbed } from '@/components/dashboard/match-statistics-tabbed';
-import { MatchMomentumGraph } from '@/components/dashboard/match-momentum-graph';
+
 import { MatchLineups } from '@/components/dashboard/match-lineups';
 
 function EventIcon({ type }: { type: MatchEvent['type'] }) {
@@ -215,32 +214,6 @@ export default function MatchDetailPage() {
               homeTeamName={match.homeTeam.name}
               awayTeamName={match.awayTeam.name}
             />
-          )}
-          {match.graphPoints && match.graphPoints.length > 0 && (
-            <MatchMomentumGraph 
-              graphPoints={match.graphPoints} 
-              homeTeamName={match.homeTeam.name}
-              awayTeamName={match.awayTeam.name}
-              events={match.events}
-            />
-          )}
-        </div>
-
-        {/* Bottom Row: Match Statistics (Spans both columns) */}
-        <div className="lg:col-span-2">
-          {match.statistics && match.statistics.length > 0 ? (
-            <MatchStatisticsTabbed periods={match.statistics} />
-          ) : (
-            <div className="rounded-2xl border border-slate-300 dark:border-white/[0.06] bg-slate-100 dark:bg-white/[0.02] p-5">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
-                Match Statistics
-              </h3>
-              <EmptyState
-                title="No statistics"
-                description="Detailed statistics are not available yet."
-              />
-            </div>
           )}
         </div>
       </div>

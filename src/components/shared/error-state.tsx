@@ -8,8 +8,8 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({
-  title = 'Something went wrong',
-  description = 'Failed to load data. Please try again.',
+  title = 'Đã xảy ra lỗi',
+  description = 'Không thể tải dữ liệu. Vui lòng thử lại.',
   onRetry,
 }: ErrorStateProps) {
   return (
@@ -27,7 +27,7 @@ export function ErrorState({
           className="gap-2 border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:bg-white/5"
         >
           <RefreshCw className="h-4 w-4" />
-          Try Again
+          Thử lại
         </Button>
       )}
     </div>

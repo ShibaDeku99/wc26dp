@@ -1,29 +1,27 @@
 'use client';
 
-import { Search, Filter } from 'lucide-react';
+import { CalendarDays, Filter, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { MatchStatus } from '@/types/football';
 
 interface FixtureFiltersProps {
   searchQuery: string;
-  onSearchChange: (q: string) => void;
+  onSearchChange: (query: string) => void;
   selectedGroup: string;
-  onGroupChange: (g: string) => void;
+  onGroupChange: (group: string) => void;
   selectedStatus: string;
-  onStatusChange: (s: string) => void;
+  onStatusChange: (status: string) => void;
   selectedDate: string;
-  onDateChange: (d: string) => void;
+  onDateChange: (date: string) => void;
 }
 
-const STATUS_OPTIONS: { value: string; label: string; color: string }[] = [
-  { value: '', label: 'All', color: 'text-slate-700 dark:text-white/60' },
-  { value: 'scheduled', label: 'Scheduled', color: 'text-blue-400' },
-  { value: 'live', label: 'Live', color: 'text-emerald-700 dark:text-emerald-400' },
-  { value: 'finished', label: 'Finished', color: 'text-slate-400' },
-  { value: 'postponed', label: 'Postponed', color: 'text-amber-700 dark:text-amber-400' },
+const STATUS_OPTIONS = [
+  { value: '', label: 'Tất cả' },
+  { value: 'scheduled', label: 'Sắp diễn ra' },
+  { value: 'live', label: 'Trực tiếp' },
+  { value: 'finished', label: 'Kết thúc' },
+  { value: 'postponed', label: 'Hoãn' },
 ];
 
 const GROUP_OPTIONS = ['', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
@@ -39,64 +37,66 @@ export function FixtureFilters({
   onDateChange,
 }: FixtureFiltersProps) {
   return (
-    <div className="space-y-4">
-      {/* Search + Date */}
-      <div className="flex flex-col sm:flex-row gap-3">
+    <div className="space-y-3">
+      <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 dark:text-white/30" />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-white/25" />
           <Input
-            placeholder="Search teams..."
+            placeholder="Tìm đội tuyển..."
             value={searchQuery}
-            onChange={e => onSearchChange(e.target.value)}
-            className="pl-9 h-10 bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-sm text-slate-900 dark:text-white placeholder:text-slate-500 dark:text-white/30 rounded-xl"
+            onChange={event => onSearchChange(event.target.value)}
+            className="h-10 rounded-xl border-slate-200 bg-white/80 pl-10 text-sm dark:border-white/[0.07] dark:bg-white/[0.035]"
           />
         </div>
-        <Input
-          type="date"
-          value={selectedDate}
-          onChange={e => onDateChange(e.target.value)}
-          className="h-10 w-full sm:w-[180px] bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-sm text-slate-900 dark:text-white rounded-xl"
-        />
+        <div className="relative w-full sm:w-[190px]">
+          <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-white/25" />
+          <Input
+            type="date"
+            value={selectedDate}
+            onChange={event => onDateChange(event.target.value)}
+            className="h-10 rounded-xl border-slate-200 bg-white/80 pl-9 text-sm dark:border-white/[0.07] dark:bg-white/[0.035]"
+          />
+        </div>
       </div>
 
-      {/* Status filter */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Filter className="h-4 w-4 text-slate-500 dark:text-white/30" />
-        {STATUS_OPTIONS.map(opt => (
+      <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3 dark:border-white/[0.05]">
+        <Filter className="h-3.5 w-3.5 text-slate-400 dark:text-white/25" />
+        {STATUS_OPTIONS.map(option => (
           <Button
-            key={opt.value}
+            key={option.value}
             variant="ghost"
             size="sm"
-            onClick={() => onStatusChange(opt.value)}
+            onClick={() => onStatusChange(option.value)}
             className={cn(
-              'h-8 rounded-full text-xs font-medium transition-all px-3',
-              selectedStatus === opt.value
-                ? 'bg-slate-200 dark:bg-white/10 text-slate-900 dark:text-white border border-slate-300 dark:border-white/20'
-                : 'text-slate-600 dark:text-white/40 hover:text-slate-700 dark:text-white/60 hover:bg-slate-100 dark:bg-white/5'
+              'h-8 rounded-xl border px-3 text-[10px] font-bold transition-all',
+              selectedStatus === option.value
+                ? 'border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300'
+                : 'border-slate-200 bg-white/50 text-slate-500 hover:bg-slate-100 dark:border-white/[0.06] dark:bg-white/[0.02] dark:text-white/35 dark:hover:bg-white/[0.05]'
             )}
           >
-            {opt.label}
+            {option.label}
           </Button>
         ))}
       </div>
 
-      {/* Group filter */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[10px] text-slate-500 dark:text-white/30 uppercase tracking-wider mr-2">Group</span>
-        {GROUP_OPTIONS.map(g => (
+      <div className="flex gap-2 overflow-x-auto no-scrollbar">
+        <span className="mr-1 self-center text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-white/25">
+          Bảng
+        </span>
+        {GROUP_OPTIONS.map(group => (
           <Button
-            key={g || 'all'}
+            key={group || 'all'}
             variant="ghost"
             size="sm"
-            onClick={() => onGroupChange(g)}
+            onClick={() => onGroupChange(group)}
             className={cn(
-              'h-7 w-7 p-0 rounded-lg text-[11px] font-bold transition-all',
-              selectedGroup === g
-                ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
-                : 'text-slate-500 dark:text-white/30 hover:text-slate-700 dark:text-white/60 hover:bg-slate-100 dark:bg-white/5'
+              'h-8 min-w-8 shrink-0 rounded-xl border p-0 text-[10px] font-bold transition-all',
+              selectedGroup === group
+                ? 'border-emerald-500/30 bg-emerald-500/12 text-emerald-700 dark:text-emerald-300'
+                : 'border-slate-200 bg-white/50 text-slate-500 hover:bg-slate-100 dark:border-white/[0.06] dark:bg-white/[0.02] dark:text-white/35 dark:hover:bg-white/[0.05]'
             )}
           >
-            {g || '∀'}
+            {group || 'Tất cả'}
           </Button>
         ))}
       </div>

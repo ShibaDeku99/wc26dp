@@ -1,213 +1,277 @@
 'use client';
 
-import { 
-  Flame, 
-  Target, 
-  Shield, 
-  TrendingUp, 
-  Medal 
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { TeamBadge } from '@/components/shared/team-badge';
-
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import {
+  Activity,
+  BarChart3,
+  Flame,
+  Goal,
+  Medal,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Trophy,
+  WandSparkles,
+} from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { LoadingSkeleton } from '@/components/shared/loading-skeleton';
+import { cn } from '@/lib/utils';
 
-const SoccerBallIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <circle cx="12" cy="12" r="10" />
-    <path d="M12 12l3-2.5-1-4-4 1-1 4 3 2.5z" />
-    <path d="M12 12l3 4.5" />
-    <path d="M15 9.5l4-1" />
-    <path d="M10 9.5l-4-1" />
-    <path d="M9 12l-3 4.5" />
-  </svg>
-);
+type RawPlayerStat = {
+  player: {
+    id: number | string;
+    name: string;
+    shortName?: string;
+  };
+  team: {
+    id: number | string;
+    name: string;
+  };
+  statistics: {
+    goals?: number;
+    assists?: number;
+    cleanSheet?: number;
+    appearances?: number;
+    rating?: number;
+  };
+};
 
-const ShoeAssistIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M4 16v-2.5c0-1.5 1-2.5 2.5-2.5h2c.5 0 1-.5 1-1v-1c0-.5.5-1 1-1h1.5" />
-    <path d="M12 8l4.5 3.5c1 .8 2.5.8 3.5 0l2-1.5" />
-    <path d="M4 16h14c1.5 0 2.5 1 2.5 2.5v.5H4v-3z" />
-    <circle cx="20" cy="8" r="2" />
-  </svg>
-);
+type StatsResponse = {
+  topPlayers?: {
+    goals?: RawPlayerStat[];
+    assists?: RawPlayerStat[];
+    cleanSheet?: RawPlayerStat[];
+  };
+};
 
-const GoalNetIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M4 22V6c0-1.1.9-2 2-2h12a2 2 0 0 1 2 2v16" />
-    <path d="M4 10h16" />
-    <path d="M4 14h16" />
-    <path d="M4 18h16" />
-    <path d="M8 4v18" />
-    <path d="M12 4v18" />
-    <path d="M16 4v18" />
-  </svg>
-);
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+type StatKey = 'goals' | 'assists' | 'cleanSheet';
 
-export interface TopPlayerItem {
+type PlayerItem = {
   id: string;
   name: string;
-  team: { id: string; name: string; code: string; flag: string };
+  teamName: string;
+  flag: string;
   stat: number;
-  subtitle: string;
+  appearances: number;
+  rating?: number;
   imageUrl: string;
-}
+};
 
-interface PlayerLeaderboardProps {
-  title: string;
+const STAT_TABS: Array<{
+  key: StatKey;
+  label: string;
+  shortLabel: string;
   icon: React.ElementType;
-  data: TopPlayerItem[];
-  theme: 'emerald' | 'amber' | 'cyan';
-  statLabel: string;
+  accent: string;
+  barColor: string;
+}> = [
+  {
+    key: 'goals',
+    label: 'Vua phá lưới',
+    shortLabel: 'Bàn thắng',
+    icon: Target,
+    accent: 'amber',
+    barColor: '#f59e0b',
+  },
+  {
+    key: 'assists',
+    label: 'Vua kiến tạo',
+    shortLabel: 'Kiến tạo',
+    icon: WandSparkles,
+    accent: 'emerald',
+    barColor: '#10b981',
+  },
+  {
+    key: 'cleanSheet',
+    label: 'Thủ môn',
+    shortLabel: 'Giữ sạch lưới',
+    icon: ShieldCheck,
+    accent: 'cyan',
+    barColor: '#06b6d4',
+  },
+];
+
+const FLAG_CODES: Record<string, string> = {
+  USA: 'us', Mexico: 'mx', Canada: 'ca', Argentina: 'ar', France: 'fr',
+  Brazil: 'br', England: 'gb-eng', Spain: 'es', Germany: 'de', Portugal: 'pt',
+  Netherlands: 'nl', Italy: 'it', Croatia: 'hr', Uruguay: 'uy', Colombia: 'co',
+  Senegal: 'sn', Japan: 'jp', 'South Korea': 'kr', Morocco: 'ma', Switzerland: 'ch',
+  Belgium: 'be', Ecuador: 'ec', Poland: 'pl', Australia: 'au', Ghana: 'gh',
+  Serbia: 'rs', Denmark: 'dk', Tunisia: 'tn', Cameroon: 'cm', 'Saudi Arabia': 'sa',
+  Iran: 'ir', Wales: 'gb-wls', 'Costa Rica': 'cr', Qatar: 'qa', 'Ivory Coast': 'ci',
+  Nigeria: 'ng', Algeria: 'dz', Egypt: 'eg', Mali: 'ml', Sweden: 'se',
+  Norway: 'no', Turkey: 'tr', Ukraine: 'ua', Scotland: 'gb-sct', Peru: 'pe',
+  Chile: 'cl', Paraguay: 'py', Venezuela: 've', Panama: 'pa', Jamaica: 'jm',
+  'Bosnia & Herzegovina': 'ba', Austria: 'at', 'Czech Republic': 'cz',
+  'South Africa': 'za', Haiti: 'ht', 'New Zealand': 'nz',
+};
+
+function getFlagUrl(teamName: string) {
+  const code = FLAG_CODES[teamName];
+  return code
+    ? `https://flagcdn.com/w80/${code}.png`
+    : `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(teamName)}&backgroundColor=0f172a&textColor=ffffff`;
 }
 
+function mapPlayers(source: RawPlayerStat[] | undefined, key: StatKey, limit = 10): PlayerItem[] {
+  return (source ?? []).slice(0, limit).map(item => ({
+    id: String(item.player.id),
+    name: item.player.shortName || item.player.name,
+    teamName: item.team.name,
+    flag: getFlagUrl(item.team.name),
+    stat: Number(item.statistics[key] ?? 0),
+    appearances: Number(item.statistics.appearances ?? 0),
+    rating: item.statistics.rating,
+    imageUrl: `/api/image?type=player&id=${item.player.id}`,
+  }));
+}
 
-
-function PlayerLeaderboard({ title, icon: Icon, data, theme, statLabel }: PlayerLeaderboardProps) {
-  const themeStyles = {
-    emerald: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
-    amber: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
-    cyan: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20',
+function LeaderCard({
+  player,
+  label,
+  icon: Icon,
+  accent,
+}: {
+  player?: PlayerItem;
+  label: string;
+  icon: React.ElementType;
+  accent: string;
+}) {
+  const styles: Record<string, { card: string; icon: string; value: string }> = {
+    amber: {
+      card: 'border-amber-500/20 bg-amber-500/[0.07]',
+      icon: 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-300',
+      value: 'text-amber-600 dark:text-amber-300',
+    },
+    emerald: {
+      card: 'border-emerald-500/20 bg-emerald-500/[0.07]',
+      icon: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
+      value: 'text-emerald-600 dark:text-emerald-300',
+    },
+    cyan: {
+      card: 'border-cyan-500/20 bg-cyan-500/[0.07]',
+      icon: 'border-cyan-500/20 bg-cyan-500/10 text-cyan-600 dark:text-cyan-300',
+      value: 'text-cyan-600 dark:text-cyan-300',
+    },
   };
-
-  const gradientStyles = {
-    emerald: 'from-emerald-500/5 to-transparent',
-    amber: 'from-amber-500/5 to-transparent',
-    cyan: 'from-cyan-500/5 to-transparent',
-  };
+  const theme = styles[accent];
 
   return (
-    <div className={cn("rounded-2xl border border-slate-300 dark:border-white/[0.06] bg-gradient-to-b overflow-hidden", gradientStyles[theme])}>
-      {/* Header */}
-      <div className="p-5 border-b border-slate-300 dark:border-white/[0.06] flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center border", themeStyles[theme])}>
-            <Icon className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h2>
-            <p className="text-[11px] text-slate-600 dark:text-white/40 uppercase tracking-wider">{statLabel} Leaders</p>
-          </div>
+    <div className={cn('relative overflow-hidden rounded-2xl border p-4', theme.card)}>
+      <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/30 blur-3xl dark:bg-white/[0.03]" />
+      <div className="relative flex items-start justify-between">
+        <div className={cn('flex h-9 w-9 items-center justify-center rounded-xl border', theme.icon)}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="text-right">
+          <p className={cn('text-3xl font-black leading-none', theme.value)}>{player?.stat ?? 0}</p>
+          <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-white/25">
+            {label}
+          </p>
         </div>
       </div>
-
-      {/* List */}
-      <div className="divide-y divide-white/[0.04] relative">
-        {data && data.length > 0 ? (
-          (() => {
-            const maxStat = Math.max(...data.map(d => d.stat), 1);
-            return data.map((player, index) => (
-              <div 
-                key={player.id} 
-                className="relative flex items-center justify-between p-4 hover:bg-slate-100 dark:bg-white/[0.04] transition-colors group overflow-hidden"
-              >
-                {/* Horizontal Bar Chart Background */}
-                <div 
-                  className={cn(
-                    "absolute top-0 bottom-0 left-0 opacity-10 group-hover:opacity-20 transition-all duration-1000 ease-out", 
-                    theme === 'emerald' ? 'bg-emerald-500' : theme === 'amber' ? 'bg-amber-500' : 'bg-cyan-500'
-                  )}
-                  style={{ width: `${(player.stat / maxStat) * 100}%` }}
-                />
-                
-                {/* Vertical Indicator Line */}
-                <div className={cn(
-                  "absolute left-0 top-0 bottom-0 w-0.5",
-                  index === 0 ? (theme === 'emerald' ? 'bg-emerald-500' : theme === 'amber' ? 'bg-amber-500' : 'bg-cyan-500') : "bg-transparent"
-                )} />
-
-                <div className="flex items-center gap-4 relative z-10">
-                  <div className={cn(
-                    "w-6 text-center font-bold text-sm",
-                    index === 0 ? "text-amber-700 dark:text-amber-400" : 
-                    index === 1 ? "text-slate-300" : 
-                    index === 2 ? "text-amber-600" : "text-slate-500 dark:text-white/30"
-                  )}>
-                    {index === 0 ? <Medal className="w-5 h-5 mx-auto" /> : index + 1}
-                  </div>
-                  
-                  <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                    <img 
-                      src={player.imageUrl} 
-                      alt={player.name} 
-                      className="w-full h-full object-cover bg-slate-100 dark:bg-white/[0.02]"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${player.name}&backgroundColor=0a0f1c&textColor=ffffff`;
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1 group-hover:text-emerald-700 dark:text-emerald-400 transition-colors">{player.name}</h3>
-                    <TeamBadge team={player.team} size="sm" showCode={true} />
-                  </div>
-                </div>
-
-                <div className="text-right relative z-10">
-                  <div className={cn(
-                    "text-2xl font-black mb-0.5",
-                    index === 0 ? themeStyles[theme].split(' ')[1] : "text-slate-900 dark:text-white"
-                  )}>
-                    {player.stat}
-                  </div>
-                  <div className="text-[10px] text-slate-500 dark:text-white/30">{player.subtitle}</div>
-                </div>
-              </div>
-            ));
-          })()
-        ) : (
-          <div className="p-8 text-center text-slate-500 dark:text-white/30 text-sm">
-            No statistics available yet
+      <div className="relative mt-5 flex items-center gap-3">
+        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-white/40 bg-white/50 shadow-sm dark:border-white/10 dark:bg-white/5">
+          {player ? (
+            <img
+              src={player.imageUrl}
+              alt={player.name}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="h-full w-full animate-pulse bg-slate-200 dark:bg-white/5" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-black text-slate-950 dark:text-white">
+            {player?.name ?? 'Đang chờ dữ liệu'}
+          </p>
+          <div className="mt-1.5 flex items-center gap-2">
+            {player && <img src={player.flag} alt="" className="h-3.5 w-5 rounded-sm object-cover" />}
+            <span className="truncate text-[10px] text-slate-500 dark:text-white/35">
+              {player?.teamName ?? 'Dẫn đầu giải đấu'}
+            </span>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 }
 
-function ChartCard({ title, subtitle, data, dataKey, color, glowColor }: { title: string, subtitle: string, data: TopPlayerItem[], dataKey: string, color: string, glowColor: string }) {
+function PerformanceChart({
+  data,
+  label,
+  color,
+}: {
+  data: PlayerItem[];
+  label: string;
+  color: string;
+}) {
+  const chartData = data.slice(0, 7).map(player => ({
+    ...player,
+    chartName: player.name.split(' ').slice(-1)[0],
+  }));
+
   return (
-    <div className="rounded-2xl border border-slate-300 dark:border-white/[0.06] bg-slate-50/50 dark:bg-[#060212]/50 p-4 sm:p-6 shadow-2xl overflow-hidden relative">
-      <div className={cn("absolute top-0 right-0 w-32 h-32 blur-[80px] rounded-full pointer-events-none", glowColor)} />
-      <div className="flex items-center justify-between mb-4">
+    <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur-xl dark:border-white/[0.06] dark:bg-white/[0.025] lg:p-5">
+      <div className="mb-5 flex items-center justify-between">
         <div>
-          <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-0.5">{title}</h2>
-          <p className="text-[10px] text-slate-600 dark:text-white/40 uppercase tracking-wider">{subtitle}</p>
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-emerald-500" />
+            <h2 className="text-sm font-black text-slate-950 dark:text-white">So sánh nhóm dẫn đầu</h2>
+          </div>
+          <p className="mt-1 text-[10px] text-slate-500 dark:text-white/35">Bảy cầu thủ dẫn đầu theo chỉ số {label.toLowerCase()}</p>
         </div>
+        <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:border-white/[0.06] dark:bg-white/[0.025] dark:text-white/35">
+          {label}
+        </span>
       </div>
-      
-      <div className="h-[200px] w-full">
+      <div className="h-[270px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, left: -30, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
-            <XAxis 
-              dataKey="name" 
-              stroke="#ffffff40" 
-              fontSize={9} 
-              tickLine={false} 
+          <BarChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-slate-200 dark:text-white/[0.06]" vertical={false} />
+            <XAxis
+              dataKey="chartName"
+              tickLine={false}
               axisLine={false}
-              tick={{ fill: '#ffffff60' }}
-              dy={10}
+              fontSize={9}
+              tick={{ fill: '#94a3b8' }}
+              dy={9}
             />
-            <YAxis 
-              stroke="#ffffff40" 
-              fontSize={9} 
-              tickLine={false} 
-              axisLine={false} 
+            <YAxis
               allowDecimals={false}
-              tick={{ fill: '#ffffff60' }}
+              tickLine={false}
+              axisLine={false}
+              fontSize={9}
+              tick={{ fill: '#94a3b8' }}
             />
-            <Tooltip 
-              cursor={{ fill: '#ffffff05' }}
-              contentStyle={{ backgroundColor: '#060212', border: '1px solid #ffffff10', borderRadius: '12px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)' }}
-              itemStyle={{ color: color, fontWeight: 'bold', fontSize: '12px' }}
-              labelStyle={{ color: '#ffffff80', marginBottom: '4px', fontSize: '10px' }}
+            <Tooltip
+              cursor={{ fill: 'rgba(148,163,184,0.08)' }}
+              contentStyle={{
+                backgroundColor: '#0f172a',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '12px',
+                color: '#fff',
+                fontSize: '11px',
+              }}
+              formatter={(value) => [String(value), label]}
+              labelFormatter={(_, payload) => payload?.[0]?.payload?.name ?? ''}
             />
-            <Bar dataKey="stat" name={dataKey} radius={[4, 4, 0, 0]} maxBarSize={40}>
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={color} opacity={1 - (index * 0.15)} />
+            <Bar dataKey="stat" name={label} radius={[6, 6, 2, 2]} maxBarSize={34}>
+              {chartData.map((player, index) => (
+                <Cell key={player.id} fill={color} opacity={Math.max(0.4, 1 - index * 0.09)} />
               ))}
             </Bar>
           </BarChart>
@@ -217,116 +281,192 @@ function ChartCard({ title, subtitle, data, dataKey, color, glowColor }: { title
   );
 }
 
-export default function StatsPage() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['playerStats'],
-    queryFn: () => fetch('/api/stats').then(res => res.json()),
-    refetchInterval: 60000, // Real-time refresh every minute
-  });
-
-  const getFlagUrl = (teamName: string) => {
-    const map: Record<string, string> = {
-      'USA': 'us', 'Mexico': 'mx', 'Canada': 'ca', 'Argentina': 'ar', 'France': 'fr',
-      'Brazil': 'br', 'England': 'gb-eng', 'Spain': 'es', 'Germany': 'de', 'Portugal': 'pt',
-      'Netherlands': 'nl', 'Italy': 'it', 'Croatia': 'hr', 'Uruguay': 'uy', 'Colombia': 'co',
-      'Senegal': 'sn', 'Japan': 'jp', 'South Korea': 'kr', 'Morocco': 'ma', 'Switzerland': 'ch',
-      'Belgium': 'be', 'Ecuador': 'ec', 'Poland': 'pl', 'Australia': 'au', 'Ghana': 'gh',
-      'Serbia': 'rs', 'Denmark': 'dk', 'Tunisia': 'tn', 'Cameroon': 'cm', 'Saudi Arabia': 'sa',
-      'Iran': 'ir', 'Wales': 'gb-wls', 'Costa Rica': 'cr', 'Qatar': 'qa', 'Ivory Coast': 'ci',
-      'Nigeria': 'ng', 'Algeria': 'dz', 'Egypt': 'eg', 'Mali': 'ml', 'Sweden': 'se',
-      'Norway': 'no', 'Turkey': 'tr', 'Ukraine': 'ua', 'Scotland': 'gb-sct', 'Peru': 'pe',
-      'Chile': 'cl', 'Paraguay': 'py', 'Venezuela': 've', 'Panama': 'pa', 'Jamaica': 'jm',
-      'Bosnia & Herzegovina': 'ba', 'Austria': 'at', 'Czech Republic': 'cz', 'Slovakia': 'sk',
-      'Romania': 'ro', 'Hungary': 'hu', 'Greece': 'gr', 'Republic of Ireland': 'ie', 'Ireland': 'ie',
-      'Northern Ireland': 'gb-nir', 'Finland': 'fi', 'Iceland': 'is', 'Honduras': 'hn',
-      'El Salvador': 'sv', 'New Zealand': 'nz', 'South Africa': 'za', 'Bolivia': 'bo',
-      'Haiti': 'ht', 'Trinidad and Tobago': 'tt', 'Macedonia': 'mk', 'North Macedonia': 'mk',
-      'Slovenia': 'si', 'Albania': 'al', 'Georgia': 'ge', 'Bulgaria': 'bg'
-    };
-    
-    const code = map[teamName];
-    if (code) return `https://flagcdn.com/w80/${code}.png`;
-    return `https://api.dicebear.com/7.x/initials/svg?seed=${teamName}&backgroundColor=060212&textColor=d946ef`;
-  };
-
-  const mapData = (sourceArray: any[], statKey: string, limit = 5): TopPlayerItem[] => {
-    if (!sourceArray) return [];
-    return sourceArray.slice(0, limit).map((item: any) => ({
-      id: String(item.player.id),
-      name: item.player.shortName || item.player.name,
-      team: {
-        id: String(item.team.id),
-        name: item.team.name,
-        code: item.team.name.substring(0, 3).toUpperCase(),
-        flag: getFlagUrl(item.team.name),
-      },
-      stat: item.statistics[statKey],
-      subtitle: `${item.statistics.appearances || 0} Matches`,
-      imageUrl: `/api/image?type=player&id=${item.player.id}`,
-    }));
-  };
-
-  const topScorers = mapData(data?.topPlayers?.goals, 'goals');
-  const topAssists = mapData(data?.topPlayers?.assists, 'assists');
-  const cleanSheets = mapData(data?.topPlayers?.cleanSheet, 'cleanSheet');
+function Leaderboard({ data, label, color }: { data: PlayerItem[]; label: string; color: string }) {
+  const maxStat = Math.max(...data.map(player => player.stat), 1);
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      {/* Page Header */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <TrendingUp className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Player Statistics</h1>
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/70 shadow-sm backdrop-blur-xl dark:border-white/[0.06] dark:bg-white/[0.025]">
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 dark:border-white/[0.06] lg:px-5">
+        <div>
+          <div className="flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-amber-500" />
+            <h2 className="text-sm font-black text-slate-950 dark:text-white">Bảng xếp hạng đầy đủ</h2>
+          </div>
+          <p className="mt-1 text-[10px] text-slate-500 dark:text-white/35">Xếp hạng giải đấu theo chỉ số {label.toLowerCase()}</p>
         </div>
-        <p className="text-sm text-slate-600 dark:text-white/40">
-          Real-time tournament leaders in goals, assists, and clean sheets
-        </p>
+        <span className="text-[10px] font-bold text-slate-400 dark:text-white/25">TOP {data.length}</span>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-6">
-          <LoadingSkeleton type="card" className="h-[300px]" />
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            <LoadingSkeleton type="table" count={5} />
-            <LoadingSkeleton type="table" count={5} />
-            <LoadingSkeleton type="table" count={5} />
+      <div className="divide-y divide-slate-100 dark:divide-white/[0.05]">
+        {data.length > 0 ? data.map((player, index) => (
+          <div key={player.id} className="group relative flex items-center gap-3 overflow-hidden px-4 py-3.5 transition hover:bg-slate-50 dark:hover:bg-white/[0.025] lg:px-5">
+            <div
+              className="absolute inset-y-0 left-0 opacity-[0.07] transition-all duration-700 group-hover:opacity-[0.12]"
+              style={{ width: `${(player.stat / maxStat) * 100}%`, backgroundColor: color }}
+            />
+            <div className={cn(
+              'relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-black',
+              index === 0 && 'bg-amber-500/12 text-amber-600 dark:text-amber-300',
+              index === 1 && 'bg-slate-400/10 text-slate-500 dark:text-slate-300',
+              index === 2 && 'bg-orange-500/10 text-orange-600 dark:text-orange-300',
+              index > 2 && 'text-slate-400 dark:text-white/25'
+            )}>
+              {index === 0 ? <Medal className="h-4 w-4" /> : index + 1}
+            </div>
+            <img
+              src={player.imageUrl}
+              alt={player.name}
+              className="relative h-10 w-10 shrink-0 rounded-xl border border-slate-200 bg-slate-100 object-cover dark:border-white/10 dark:bg-white/5"
+            />
+            <div className="relative min-w-0 flex-1">
+              <p className="truncate text-xs font-bold text-slate-900 dark:text-white">{player.name}</p>
+              <div className="mt-1 flex items-center gap-2">
+                <img src={player.flag} alt="" className="h-3 w-4 rounded-[2px] object-cover" />
+                <span className="truncate text-[10px] text-slate-500 dark:text-white/35">{player.teamName}</span>
+              </div>
+            </div>
+            <div className="relative hidden text-right sm:block">
+              <p className="text-[10px] font-semibold text-slate-500 dark:text-white/35">{player.appearances} trận</p>
+              {player.rating && <p className="mt-0.5 text-[9px] text-slate-400 dark:text-white/25">Rating {player.rating.toFixed(1)}</p>}
+            </div>
+            <div className="relative min-w-10 text-right">
+              <p className="text-xl font-black text-slate-950 dark:text-white">{player.stat}</p>
+              <p className="text-[8px] font-bold uppercase tracking-wider text-slate-400 dark:text-white/25">{label}</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* 3 Charts Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <ChartCard title="Top Goalscorers" subtitle="Golden Boot Race" data={topScorers} dataKey="Goals" color="#f59e0b" glowColor="bg-amber-500/5" />
-            <ChartCard title="Most Assists" subtitle="Playmaker Award" data={topAssists} dataKey="Assists" color="#10b981" glowColor="bg-emerald-500/5" />
-            <ChartCard title="Clean Sheets" subtitle="Golden Glove Race" data={cleanSheets} dataKey="Clean Sheets" color="#06b6d4" glowColor="bg-cyan-500/5" />
+        )) : (
+          <div className="p-10 text-center text-sm text-slate-500 dark:text-white/35">
+          Chưa có dữ liệu thống kê.
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-          {/* Leaderboard Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          <PlayerLeaderboard 
-            title="Top Scorers" 
-            icon={SoccerBallIcon} 
-            data={topScorers} 
-            theme="amber" 
-            statLabel="Goals"
-          />
-          <PlayerLeaderboard 
-            title="Most Assists" 
-            icon={ShoeAssistIcon} 
-            data={topAssists} 
-            theme="emerald" 
-            statLabel="Assists"
-          />
-          <PlayerLeaderboard 
-            title="Clean Sheets" 
-            icon={GoalNetIcon} 
-            data={cleanSheets} 
-            theme="cyan" 
-            statLabel="Clean Sheets"
-          />
+export default function StatsPage() {
+  const [activeStat, setActiveStat] = useState<StatKey>('goals');
+
+  const { data, isLoading, isFetching, refetch } = useQuery<StatsResponse>({
+    queryKey: ['playerStats'],
+    queryFn: () => fetch('/api/stats').then(response => response.json()),
+    refetchInterval: 60 * 1000,
+  });
+
+  const leaders = useMemo(() => ({
+    goals: mapPlayers(data?.topPlayers?.goals, 'goals'),
+    assists: mapPlayers(data?.topPlayers?.assists, 'assists'),
+    cleanSheet: mapPlayers(data?.topPlayers?.cleanSheet, 'cleanSheet'),
+  }), [data]);
+
+  const activeConfig = STAT_TABS.find(tab => tab.key === activeStat) ?? STAT_TABS[0];
+  const activePlayers = leaders[activeStat];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 p-4 lg:p-6">
+        <LoadingSkeleton type="hero" />
+        <LoadingSkeleton type="card" count={3} />
+        <LoadingSkeleton type="table" count={8} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 p-4 lg:p-6">
+      <header className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-slate-950 px-5 py-6 text-white shadow-2xl shadow-slate-950/10 dark:border-white/[0.07] lg:px-8 lg:py-8">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_0%,rgba(16,185,129,0.2),transparent_30%),radial-gradient(circle_at_20%_100%,rgba(6,182,212,0.16),transparent_38%)]" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300">
+              <Sparkles className="h-3.5 w-3.5" />
+              Phân tích giải đấu trực tiếp
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07]">
+                <TrendingUp className="h-5 w-5 text-emerald-300" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-black tracking-[-0.04em] lg:text-4xl">Thống kê cầu thủ</h1>
+                <p className="mt-1 text-sm text-white/45">Theo dõi người dẫn đầu về bàn thắng, kiến tạo và giữ sạch lưới.</p>
+              </div>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="inline-flex w-fit items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3.5 py-2.5 text-xs font-semibold text-white/65 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} />
+            {isFetching ? 'Đang cập nhật...' : 'Cập nhật dữ liệu'}
+          </button>
         </div>
-      )}
+      </header>
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <LeaderCard player={leaders.goals[0]} label="Bàn thắng" icon={Flame} accent="amber" />
+        <LeaderCard player={leaders.assists[0]} label="Kiến tạo" icon={WandSparkles} accent="emerald" />
+        <LeaderCard player={leaders.cleanSheet[0]} label="Giữ sạch lưới" icon={ShieldCheck} accent="cyan" />
+      </section>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/60 p-3 backdrop-blur-xl dark:border-white/[0.06] dark:bg-white/[0.02] lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-white/35">
+          <Activity className="h-4 w-4 text-emerald-500" />
+          Chọn chỉ số để cập nhật biểu đồ và bảng xếp hạng
+        </div>
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          {STAT_TABS.map(tab => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveStat(tab.key)}
+              className={cn(
+                'inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-bold transition',
+                activeStat === tab.key
+                  ? tab.accent === 'amber'
+                    ? 'border-amber-500/30 bg-amber-500/12 text-amber-700 dark:text-amber-300'
+                    : tab.accent === 'emerald'
+                      ? 'border-emerald-500/30 bg-emerald-500/12 text-emerald-700 dark:text-emerald-300'
+                      : 'border-cyan-500/30 bg-cyan-500/12 text-cyan-700 dark:text-cyan-300'
+                  : 'border-slate-200 bg-white/60 text-slate-500 hover:bg-slate-100 dark:border-white/[0.06] dark:bg-white/[0.025] dark:text-white/35 dark:hover:bg-white/[0.05]'
+              )}
+            >
+              <tab.icon className="h-3.5 w-3.5" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <PerformanceChart
+          data={activePlayers}
+          label={activeConfig.shortLabel}
+          color={activeConfig.barColor}
+        />
+        <Leaderboard
+          data={activePlayers}
+          label={activeConfig.shortLabel}
+          color={activeConfig.barColor}
+        />
+      </section>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[
+          { icon: Goal, label: 'Chiếc giày vàng', detail: 'Ghi nhiều bàn thắng nhất', color: 'text-amber-500' },
+          { icon: WandSparkles, label: 'Vua kiến tạo', detail: 'Kiến tạo nhiều nhất', color: 'text-emerald-500' },
+          { icon: ShieldCheck, label: 'Găng tay vàng', detail: 'Giữ sạch lưới nhiều nhất', color: 'text-cyan-500' },
+        ].map(item => (
+          <div key={item.label} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white/50 p-3 dark:border-white/[0.05] dark:bg-white/[0.015]">
+            <item.icon className={cn('h-4 w-4', item.color)} />
+            <div>
+              <p className="text-[11px] font-bold text-slate-800 dark:text-white/70">{item.label}</p>
+              <p className="text-[9px] text-slate-400 dark:text-white/25">{item.detail}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

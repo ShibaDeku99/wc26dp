@@ -26,7 +26,7 @@ export function AppHeader() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 dark:text-white/30" />
             <Input
-              placeholder="Search teams, matches..."
+              placeholder="Tìm đội tuyển, trận đấu..."
               className="w-[280px] pl-9 h-9 bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-sm text-slate-900 dark:text-white placeholder:text-slate-500 dark:text-white/30 rounded-xl focus-visible:ring-fuchsia-500/30"
             />
           </div>
@@ -36,7 +36,7 @@ export function AppHeader() {
         <div className="flex items-center gap-2">
           <div className="hidden sm:flex items-center gap-2 mr-2 px-3 py-1.5 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20">
             <div className="w-2 h-2 rounded-full bg-fuchsia-400 animate-pulse" />
-            <span className="text-[11px] font-medium text-fuchsia-700 dark:text-fuchsia-400">LIVE</span>
+            <span className="text-[11px] font-medium text-fuchsia-700 dark:text-fuchsia-400">TRỰC TIẾP</span>
           </div>
           <LanguageToggle />
           <ThemeToggle />

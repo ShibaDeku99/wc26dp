@@ -7,8 +7,8 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-  title = 'No data available',
-  description = 'There is no data to display at the moment. Please check back later.',
+  title = 'Chưa có dữ liệu',
+  description = 'Hiện chưa có dữ liệu để hiển thị. Vui lòng quay lại sau.',
   icon,
 }: EmptyStateProps) {
   return (

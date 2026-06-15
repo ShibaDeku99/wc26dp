@@ -28,7 +28,7 @@ export function MobileNav() {
         side="left"
         className="w-[280px] bg-gradient-to-b from-white dark:from-[#0a0f1c] to-[#0d1529] border-slate-200 dark:border-white/5 p-0"
       >
-        <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+        <SheetTitle className="sr-only">Trình đơn điều hướng</SheetTitle>
         {/* Logo */}
         <div className="flex items-center gap-3 px-6 h-16 border-b border-slate-200 dark:border-white/5">
                 <div className="flex-shrink-0 w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-slate-100 dark:bg-white/5">
@@ -36,7 +36,7 @@ export function MobileNav() {
                 </div>
           <div>
             <h2 className="text-sm font-bold text-slate-900 dark:text-white">WC 2026</h2>
-            <p className="text-[10px] text-slate-600 dark:text-white/40 uppercase tracking-wider">Dashboard</p>
+            <p className="text-[10px] text-slate-600 dark:text-white/40 uppercase tracking-wider">Bảng điều khiển</p>
           </div>
         </div>
 

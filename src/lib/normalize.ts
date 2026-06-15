@@ -4,7 +4,7 @@
 // our clean internal types
 // ============================================
 
-import type { Team, Match, MatchStatus, Standing, MatchEvent, MatchStatistic, MatchDetail } from '@/types/football';
+import type { Team, Match, MatchStatus, Standing, MatchEvent, MatchDetail } from '@/types/football';
 
 /**
  * Normalize API-Football status codes to our MatchStatus
@@ -187,28 +187,8 @@ export function normalizeMatchDetail(apiData: {
     detail: evt.detail,
   }));
 
-  const allStats: MatchStatistic[] = [];
-  if (apiData.statistics && apiData.statistics.length >= 2) {
-    const homeStats = apiData.statistics.find(s => s.team.id === apiData.teams.home.id);
-    const awayStats = apiData.statistics.find(s => s.team.id === apiData.teams.away.id);
-
-    if (homeStats && awayStats) {
-      for (const homeStat of homeStats.statistics) {
-        const awayStat = awayStats.statistics.find(s => s.type === homeStat.type);
-        if (awayStat) {
-          allStats.push({
-            label: homeStat.type,
-            home: homeStat.value ?? 0,
-            away: awayStat.value ?? 0,
-          });
-        }
-      }
-    }
-  }
-
   return {
     ...match,
     events,
-    statistics: [{ period: 'Full Time', statistics: allStats }],
   };
 }

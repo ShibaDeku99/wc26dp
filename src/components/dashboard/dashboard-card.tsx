@@ -12,9 +12,9 @@ interface DashboardCardProps {
 
 export function DashboardCard({ title, value, subtitle, icon, className = '', children }: DashboardCardProps) {
   return (
-    <div className={`group relative overflow-hidden flex flex-col rounded-2xl border border-slate-300 dark:border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01] p-5 transition-all duration-300 hover:border-slate-400 dark:border-white/[0.12] hover:shadow-lg hover:shadow-fuchsia-500/5 ${className}`}>
+    <div className={`group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/70 p-5 shadow-sm backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-500/20 hover:shadow-lg dark:border-white/[0.06] dark:bg-white/[0.025] ${className}`}>
       {/* Background glow */}
-      <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-fuchsia-500/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-emerald-500/10 opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100" />
 
       <div className="relative flex items-start justify-between">
         <div>
@@ -28,7 +28,7 @@ export function DashboardCard({ title, value, subtitle, icon, className = '', ch
             <p className="text-xs text-slate-500 dark:text-white/30 mt-1.5">{subtitle}</p>
           )}
         </div>
-        <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-fuchsia-500/20 to-violet-500/10 flex items-center justify-center text-fuchsia-700 dark:text-fuchsia-400">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-emerald-500/15 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
           {icon}
         </div>
       </div>
